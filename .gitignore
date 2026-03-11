@@ -1,0 +1,26 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+venv/
+env/
+.venv/
+
+# Whisper model cache (jangan push ke git, biarkan download sendiri)
+~/.cache/huggingface/
+
+# Temp files
+*.tmp
+*.log
+temp_audio_*
+
+# IDE
+.vscode/
+.idea/
+*.swp
