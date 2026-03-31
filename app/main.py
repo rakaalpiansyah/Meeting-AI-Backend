@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.api.endpoints import meetings, websocket, health
+from app.api.endpoints import meetings, websocket, health, auth
 
 logging.basicConfig(
     level=logging.INFO,
@@ -67,6 +67,9 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(meetings.router, prefix="/api/v1")
 app.include_router(websocket.router, prefix="/api/v1")
+
+# Router Auth dari Supabase
+app.include_router(auth.router, prefix="/api/v1/auth")
 
 
 @app.get("/", tags=["Root"])

@@ -23,4 +23,4 @@ temp_audio_*
 # IDE
 .vscode/
 .idea/
-*.swp
+*.swpmeetmindvenv/
