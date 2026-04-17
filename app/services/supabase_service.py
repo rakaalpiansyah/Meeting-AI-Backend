@@ -37,8 +37,10 @@ class SupabaseService:
         full_transcript: str,
         summary: str,
         action_items: list[ActionItem],
-        recommendations: list[dict] = [],  # ← tambah parameter ini
+        recommendations: list[dict] = [],
         duration_seconds: int = 0,
+        diarized_transcript: str | None = None,
+        speakers_detected: int | None = None,
     ) -> dict:
         items_data = [item.model_dump() for item in action_items]
 
@@ -46,11 +48,17 @@ class SupabaseService:
             "full_transcript": full_transcript,
             "summary": summary,
             "action_items": items_data,
-            "recommendations": recommendations,  # ← simpan ke DB
+            "recommendations": recommendations,
             "status": "completed",
             "duration_seconds": duration_seconds,
             "finished_at": datetime.utcnow().isoformat(),
         }
+
+        # Simpan hasil diarization jika tersedia
+        if diarized_transcript is not None:
+            update_data["diarized_transcript"] = diarized_transcript
+        if speakers_detected is not None:
+            update_data["speakers_detected"] = speakers_detected
 
         response = (
             self.client.table("meetings")
@@ -90,6 +98,43 @@ class SupabaseService:
             .execute()
         )
         return len(response.data) > 0
+
+    async def update_meeting(
+        self,
+        meeting_id: str,
+        update_fields: dict,
+    ) -> dict | None:
+        """
+        Partial update data meeting.
+        Hanya field yang ada di update_fields yang diubah.
+        Selalu menyertakan updated_at timestamp.
+
+        Args:
+            meeting_id: UUID meeting yang akan diupdate
+            update_fields: dict berisi field yang ingin diubah,
+                           mis. {"title": "...", "full_transcript": "..."}
+
+        Returns:
+            Row meeting yang sudah diupdate, atau None jika tidak ditemukan.
+        """
+        if not update_fields:
+            # Tidak ada yang perlu diupdate, return data saat ini
+            return await self.get_meeting_by_id(meeting_id)
+
+        update_fields["updated_at"] = datetime.utcnow().isoformat()
+
+        response = (
+            self.client.table("meetings")
+            .update(update_fields)
+            .eq("id", meeting_id)
+            .execute()
+        )
+
+        if not response.data:
+            return None
+
+        logger.info(f"Meeting updated: {meeting_id} | fields: {list(update_fields.keys())}")
+        return response.data[0]
 
     async def save_transcript_chunk(
         self, meeting_id: str, chunk_index: int, text: str

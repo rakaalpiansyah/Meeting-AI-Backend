@@ -1,319 +1,491 @@
-# 🎙️ Meeting FastAPI AI
+# 🎙️ Meeting AI — FastAPI Backend
 
-Backend FastAPI untuk aplikasi **perekam dan analisis rapat** otomatis berbasis AI.
+> **Backend layanan AI** untuk perekaman, transkripsi otomatis, deteksi speaker, dan analisis rapat berbasis kecerdasan buatan.
 
-> Transkripsi audio via **Groq Whisper API** + Analisis cerdas via **AI LLM** + Penyimpanan via **Supabase**
-
-## Arsitektur
-
-```text
-Frontend  ──WebSocket──▶  FastAPI  ──▶  Groq Whisper API  (Speech-to-Text)
-                                   ──▶  AI LLM            (Summary + Action Items)
-                                   ──▶  Supabase           (Penyimpanan & Auth)
-```
-
-## Stack Teknologi
-
-| Komponen | Teknologi | Fungsi |
-|----------|-----------|--------|
-| Framework | FastAPI | Web framework async |
-| Transkripsi | Groq Whisper API (`whisper-large-v3-turbo`) | Speech-to-Text via cloud |
-| Analisis AI | LLM (konfigurabel) | Ringkasan, action items, rekomendasi |
-| Database | Supabase (PostgreSQL) | Penyimpanan hasil rapat |
-| Real-time | WebSocket | Streaming audio dari browser |
-| **User Auth** | **Supabase Auth** | **Registrasi, Login, dan manajemen JWT** |
-| System Auth | API Key (`X-API-Key` header) | Autentikasi client/server aplikasi |
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
+[![Groq](https://img.shields.io/badge/Groq-Whisper%20API-f97316?style=flat-square)](https://console.groq.com)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com)
 
 ---
 
-## 🔐 Autentikasi
+## ✨ Fitur Utama
 
-Aplikasi ini menggunakan dua lapis keamanan: **System API Key** (untuk memastikan request berasal dari aplikasi frontend yang sah) dan **User JWT** (untuk identitas pengguna).
-
-### 1. Autentikasi Pengguna (User Auth via Supabase)
-Untuk mendapatkan akses sebagai pengguna, client harus memanggil endpoint `/login` untuk mendapatkan `access_token` (JWT).
-
-### 2. Autentikasi Sistem (REST API)
-Kirim header `X-API-Key` di setiap request untuk melindungi endpoint secara global:
-```bash
-curl -H "X-API-Key: YOUR_API_KEY" https://your-server.com/api/v1/meetings/user/USER_ID
-```
-
-### 3. Autentikasi WebSocket
-Kirim API Key sebagai query parameter saat membuka koneksi:
-```text
-ws://your-server.com/api/v1/ws/transcribe/{meeting_id}?=YOUR_API_KEY
-```
-
-### Response Error
-
-| Status | Arti |
-|--------|------|
-| `401` | API Key tidak dikirim |
-| `403` | API Key tidak valid |
+| Fitur | Deskripsi |
+|-------|-----------|
+| 🎤 **Real-time Transcription** | Streaming audio via WebSocket → Groq Whisper API |
+| 👥 **Speaker Diarization** | Deteksi otomatis siapa berbicara — tanpa model ML lokal |
+| 🧠 **AI Meeting Analysis** | Summary, action items, dan rekomendasi strategis via LLM |
+| 💾 **Persistent Storage** | Semua hasil rapat disimpan di Supabase (PostgreSQL) |
+| 🔐 **Dual Auth Layer** | API Key (sistem) + Supabase Auth (pengguna) |
+| ⚡ **Async & Fast** | Dibangun di atas FastAPI + `async/await` — siap skala besar |
 
 ---
 
-## Setup
+## 🏛️ Arsitektur
 
-### 1. Prasyarat
-- Python 3.11+
-- API Key dari [Groq Console](https://console.groq.com) (gratis)
-- Akun dan Project di [Supabase](https://supabase.com)
+```
+┌─────────────┐        WebSocket         ┌──────────────────────────────────────────┐
+│   Frontend  │ ──────────────────────▶  │             FastAPI Backend              │
+│  (Browser)  │ ◀──────────────────────  │                                          │
+└─────────────┘    JSON / Binary         │  ┌─────────────┐  ┌────────────────────┐ │
+                                         │  │   Whisper   │  │  Diarization       │ │
+                                         │  │  Service    │  │  Service           │ │
+                                         │  │ (Groq API)  │  │ (Pause Clustering) │ │
+                                         │  └──────┬──────┘  └────────┬───────────┘ │
+                                         │         │                  │             │
+                                         │  ┌──────▼──────────────────▼───────────┐ │
+                                         │  │           AI Service (LLM)          │ │
+                                         │  │  Summary + Action Items + Rekom.    │ │
+                                         │  └──────────────────┬──────────────────┘ │
+                                         │                     │                    │
+                                         │  ┌──────────────────▼──────────────────┐ │
+                                         │  │        Supabase Service             │ │
+                                         │  │    PostgreSQL + Row Level Security  │ │
+                                         │  └─────────────────────────────────────┘ │
+                                         └──────────────────────────────────────────┘
+```
 
-### 2. Clone & Install
+---
+
+## 🔧 Stack Teknologi
+
+| Layer | Teknologi | Keterangan |
+|-------|-----------|------------|
+| **Framework** | FastAPI | Async web framework Python |
+| **Transcription** | Groq Whisper API (`whisper-large-v3-turbo`) | Speech-to-text via cloud, tanpa GPU lokal |
+| **Speaker Diarization** | Pure Python (pause-based clustering) | Deteksi speaker dari timestamps Groq `verbose_json` |
+| **AI Analysis** | LLM via Groq (Llama 3.3 70B) | Summary, action items, rekomendasi strategis |
+| **Database** | Supabase (PostgreSQL) | Penyimpanan hasil rapat & transcript |
+| **Real-time** | WebSocket | Streaming audio dari browser ke backend |
+| **User Auth** | Supabase Auth | JWT-based user authentication |
+| **System Auth** | API Key (`X-API-Key` header) | Autentikasi client aplikasi |
+
+---
+
+## 👥 Speaker Diarization
+
+Fitur diarization mendeteksi **siapa yang berbicara** dalam rapat secara otomatis, mengubah transkrip biasa menjadi transkrip berlabel speaker.
+
+**Sebelum diarization:**
+```
+oke jadi hari ini kita bahas roadmap Q3 betul saya sudah siapkan slide-nya bagus kita mulai dari fitur login
+```
+
+**Setelah diarization:**
+```
+[Speaker 1]: Oke jadi hari ini kita bahas roadmap Q3
+[Speaker 2]: Betul, saya sudah siapkan slide-nya.
+[Speaker 1]: Bagus, kita mulai dari fitur login.
+```
+
+### Cara Kerja
+
+```
+Audio WebM
+    │
+    ▼
+Groq Whisper (verbose_json)
+    │
+    ├── text: "transkrip plain"
+    └── segments: [{start, end, text}, ...]
+                │
+                ▼
+    DiarizationService.diarize()
+         Gap Analysis (>1.2 detik = ganti speaker)
+                │
+                ▼
+    [{..., speaker: "Speaker 1"}, ...]
+                │
+                ▼
+    "[Speaker 1]: teks...\n[Speaker 2]: teks..."
+```
+
+### Keunggulan Pendekatan
+
+| Aspek | `pyannote.audio` | Pendekatan Ini |
+|-------|-----------------|----------------|
+| Install size | ~3 GB (torch + model) | 0 MB (built-in) |
+| Dependencies baru | torch, torchaudio, pyannote | Tidak ada |
+| Cold start | ~30 detik | Instan |
+| Akurasi | Tinggi (ML-based) | Baik (rule-based, optimal untuk meeting) |
+| Cocok untuk Railway/Cloud | ❌ Sulit | ✅ Ya |
+
+---
+
+## 🚀 Setup Lokal
+
+### Prasyarat
+
+- Python **3.11+**
+- Akun & API Key [Groq Console](https://console.groq.com) *(gratis)*
+- Akun & Project [Supabase](https://supabase.com)
+
+### 1. Clone & Install
+
 ```bash
 git clone <repo-url>
-cd meeting-ai-backend
+cd UAS-BE-AI
 
 # Buat virtual environment
 python -m venv venv
 source venv/bin/activate      # Linux/Mac
-# atau: venv\Scripts\activate  # Windows
+venv\Scripts\activate         # Windows
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Konfigurasi Environment
+### 2. Konfigurasi Environment
 
 ```bash
 cp .env.example .env
 ```
 
-Buat file `.env` dari `.env.example` dan isi variabel berikut:
+Edit file `.env` dan isi variabel berikut:
 
 | Variable | Wajib | Deskripsi |
 |----------|-------|-----------|
 | `API_KEYS` | ✅ | API keys untuk client (comma-separated) |
-| `GEMINI_API_KEY` | ✅ | API key dari Google AI Studio |
-| `GROQ_API_KEY` | ✅ | API key dari Groq Console |
+| `GEMINI_API_KEY` | ✅ | API key Groq (untuk LLM analysis) |
+| `GROQ_API_KEY` | ✅ | API key Groq (untuk Whisper STT) |
 | `SUPABASE_URL` | ✅ | Project URL Supabase |
 | `SUPABASE_ANON_KEY` | ✅ | Anon key Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Service role key Supabase (Akses admin backend) |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Service role key (akses admin backend) |
 | `FRONTEND_URL` | ❌ | URL frontend untuk CORS (default: `http://localhost:5173`) |
 | `ALLOWED_ORIGINS` | ❌ | Origin tambahan, comma-separated |
+| `HF_TOKEN` | ❌ | Hugging Face token — opsional, untuk upgrade ke pyannote |
 
-### 4. Setup Database Supabase
-1. Buka Supabase dashboard → SQL Editor
-2. Copy-paste seluruh isi file `supabase_schema.sql`
+### 3. Setup Database Supabase
+
+1. Buka **Supabase dashboard → SQL Editor**
+2. Copy-paste seluruh isi `supabase_schema.sql`
 3. Klik **Run**
-4. *(Opsional)* Matikan "Confirm Email" di menu **Authentication > Providers > Email** untuk mempermudah testing lokal.
 
-### 5. Jalankan Server
+> **Jika tabel sudah ada sebelumnya**, jalankan migration berikut:
+> ```sql
+> ALTER TABLE meetings ADD COLUMN IF NOT EXISTS diarized_transcript TEXT;
+> ALTER TABLE meetings ADD COLUMN IF NOT EXISTS speakers_detected INTEGER;
+> ALTER TABLE meetings ADD COLUMN IF NOT EXISTS recommendations JSONB DEFAULT '[]'::jsonb;
+> ```
+
+4. *(Opsional)* Matikan "Confirm Email" di **Authentication → Providers → Email** untuk mempermudah testing lokal.
+
+### 4. Jalankan Server
 
 ```bash
-# Development (auto-reload)
+# Development (dengan auto-reload)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Production
 uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
+
+Swagger UI tersedia di: **[http://localhost:8000/docs](http://localhost:8000/docs)**
+
 ---
 
-## API Endpoints
+## 📡 API Reference
 
-> 📖 Swagger UI tersedia di: `http://localhost:8000/docs`
+### Authentication
 
-### Auth (Supabase)
-| Method | URL | Deskripsi |
-|--------|-----|-----------|
-| `POST` | `/api/v1/auth/signup` | Registrasi user baru |
-| `POST` | `/api/v1/auth/login` | Login user, mengembalikan `access_token` (JWT) |
+| Method | Endpoint | Auth | Deskripsi |
+|--------|----------|------|-----------|
+| `POST` | `/api/v1/auth/signup` | — | Registrasi user baru |
+| `POST` | `/api/v1/auth/login` | — | Login, return `access_token` (JWT) |
 
-### Health Check (tanpa auth)
-| Method | URL | Deskripsi |
-|--------|-----|-----------|
-| `GET` | `/health` | Status server & semua service |
+### Health
 
-### Meetings (perlu `X-API-Key`)
-| Method | URL | Deskripsi |
-|--------|-----|-----------|
-| `POST` | `/api/v1/meetings/` | Buat sesi rapat baru |
-| `POST` | `/api/v1/meetings/{id}/finish` | Selesaikan rapat + analisis AI |
-| `GET` | `/api/v1/meetings/user/{user_id}` | Daftar rapat milik user |
-| `GET` | `/api/v1/meetings/{id}` | Detail lengkap satu rapat |
-| `DELETE` | `/api/v1/meetings/{id}?user_id=xxx` | Hapus rapat |
+| Method | Endpoint | Auth | Deskripsi |
+|--------|----------|------|-----------|
+| `GET` | `/health` | — | Status server & semua service |
 
-### WebSocket (perlu `api_key` query param)
+### Meetings
+
+| Method | Endpoint | Auth | Deskripsi |
+|--------|----------|------|-----------|
+| `POST` | `/api/v1/meetings/` | `X-API-Key` | Buat sesi rapat baru |
+| `POST` | `/api/v1/meetings/{id}/finish` | `X-API-Key` | Selesaikan rapat + analisis AI |
+| `PATCH` | `/api/v1/meetings/{id}` | `X-API-Key` | Edit judul dan/atau transkrip (+ re-analyze opsional) |
+| `GET` | `/api/v1/meetings/user/{user_id}` | `X-API-Key` | Daftar rapat milik user |
+| `GET` | `/api/v1/meetings/{id}` | `X-API-Key` | Detail lengkap satu rapat |
+| `DELETE` | `/api/v1/meetings/{id}?user_id=xxx` | `X-API-Key` | Hapus rapat |
+
+### WebSocket
 
 ```
 ws://localhost:8000/api/v1/ws/transcribe/{meeting_id}?api_key=YOUR_API_KEY
 ```
 
-**Kirim dari Frontend:**
+**Pesan dari Frontend → Backend:**
 
-| Tipe | Data | Deskripsi |
-|------|------|-----------|
+| Type | Payload | Deskripsi |
+|------|---------|-----------|
 | Binary | `bytes` | Audio chunk (WebM/Opus) |
 | Text | `{"type": "ping"}` | Keepalive |
-| Text | `{"type": "stop"}` | Akhiri rekaman & mulai transkripsi |
+| Text | `{"type": "stop"}` | Akhiri rekaman, mulai transkripsi & diarization |
 
-**Terima di Frontend:**
+**Pesan dari Backend → Frontend:**
 
-| Tipe | Data | Deskripsi |
-|------|------|-----------|
+| Type | Payload | Deskripsi |
+|------|---------|-----------|
 | `audio_received` | `{"buffer_kb": 123.4}` | Konfirmasi audio diterima |
-| `processing` | `{"message": "..."}` | Sedang memproses audio |
+| `processing` | `{"message": "..."}` | Status pemrosesan |
 | `transcript` | `{"text": "...", "is_final": true}` | Hasil transkripsi |
-| `session_ended` | `{"full_transcript": "..."}` | Sesi selesai |
-| `error` | `{"message": "..."}` | Error |
+| `session_ended` | Lihat di bawah | Sesi selesai + hasil diarization |
+| `error` | `{"message": "..."}` | Pesan error |
 
----
-
-## Contoh Penggunaan (Frontend)
-
-### 0. Registrasi & Login (Baru)
-
-```javascript
-// 1. Sign Up
-const signupRes = await fetch("[https://your-server.com/api/v1/auth/signup](https://your-server.com/api/v1/auth/signup)", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ email: "user@domain.com", password: "password123" })
-});
-const signupData = await signupRes.json();
-
-// 2. Login
-const loginRes = await fetch("[https://your-server.com/api/v1/auth/login](https://your-server.com/api/v1/auth/login)", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ email: "user@domain.com", password: "password123" })
-});
-const { access_token, user_id } = await loginRes.json();
-// Simpan access_token dan user_id di localStorage / state
-```
-
-### 1. Buat Meeting
-```javascript
-const res = await fetch("[https://your-server.com/api/v1/meetings/](https://your-server.com/api/v1/meetings/)", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "X-API-Key": "YOUR_API_KEY",
-    "Authorization": `Bearer ${access_token}` // Opsional: jika endpoint butuh verifikasi JWT
-  },
-  body: JSON.stringify({
-    title: "Weekly Standup",
-    user_id: user_id // Didapat dari response login
-  })
-});
-const { meeting_id } = await res.json();
-```
-
-### 2. Rekam Audio via WebSocket
-```javascript
-const ws = new WebSocket(
-  `wss://[your-server.com/api/v1/ws/transcribe/$](https://your-server.com/api/v1/ws/transcribe/$){meetingId}?api_key=YOUR_API_KEY`
-);
-
-// Kirim audio chunks dari MediaRecorder
-mediaRecorder.ondataavailable = (e) => {
-  if (e.data.size > 0) ws.send(e.data);
-};
-
-// Stop & transkripsi
-ws.send(JSON.stringify({ type: "stop" }));
-
-// Terima hasil
-ws.onmessage = (e) => {
-  const msg = JSON.parse(e.data);
-  if (msg.type === "transcript") console.log("Transkrip:", msg.text);
-  if (msg.type === "session_ended") console.log("Selesai:", msg.full_transcript);
-};
-```
-
-### 3. Analisis AI
-```javascript
-const res = await fetch(`[https://your-server.com/api/v1/meetings/$](https://your-server.com/api/v1/meetings/$){meetingId}/finish`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "X-API-Key": "YOUR_API_KEY"
-  },
-  body: JSON.stringify({
-    meeting_id: meetingId,
-    full_transcript: fullTranscript
-  })
-});
-const analysis = await res.json();
-```
-
----
-
-## Struktur Folder
-
-```text
-meeting-ai-backend/
-├── app/
-│   ├── main.py                    # Entry point FastAPI
-│   ├── core/
-│   │   ├── config.py              # Konfigurasi & env variables
-│   │   └── auth.py                # API Key authentication
-│   ├── api/
-│   │   └── endpoints/
-│   │       ├── auth.py            # 🔐 Endpoint Supabase Signup & Login
-│   │       ├── meetings.py        # REST endpoints rapat
-│   │       ├── websocket.py       # WebSocket streaming audio
-│   │       └── health.py          # Health check
-│   ├── schemas/
-│   │   └── meeting.py             # Pydantic request/response models
-│   └── services/
-│       ├── whisper_service.py     # Groq Whisper API (speech-to-text)
-│       ├── ai_service.py          # AI LLM (analisis rapat)
-│       └── supabase_service.py    # Database operations
-├── meeting-ai-tester.html         # HTML tester untuk testing manual
-├── supabase_schema.sql            # SQL schema untuk Supabase
-├── requirements.txt
-├── nixpacks.toml                  # Deploy config Railway
-├── railway.json                   # Railway settings
-├── .env.example
-└── README.md
-```
-
----
-
-## Response Schemas
-
-### MeetingResultResponse
+**Payload `session_ended` (lengkap):**
 
 ```json
 {
-  "meeting_id": "uuid",
-  "title": "Weekly Sync Tim Produk",
-  "summary": "Ringkasan rapat dari AI...",
-  "action_items": [
-    {
-      "task": "Buat mockup halaman dashboard",
-      "assignee": "Raka",
-      "deadline": "2026-03-15"
-    }
-  ],
-  "recommendations": [
-    {
-      "title": "Prioritaskan fitur login",
-      "detail": "Berdasarkan diskusi, fitur login harus selesai minggu ini...",
-      "priority": "high"
-    }
-  ],
-  "full_transcript": "Teks transkripsi lengkap...",
-  "created_at": "2026-03-11T20:00:00"
+  "type": "session_ended",
+  "full_transcript": "teks transkrip plain...",
+  "diarized_transcript": "[Speaker 1]: teks...\n[Speaker 2]: teks...",
+  "speakers_detected": 2,
+  "total_chunks": 1
 }
 ```
 
 ---
 
-## Deploy ke Railway
+## 📦 Response Schemas
 
-1. Push ke GitHub
-2. Hubungkan repo ke [Railway](https://railway.app)
-3. Tambahkan **environment variables** di Railway dashboard:
-   - `API_KEYS`
-   - `GEMINI_API_KEY`
-   - `GROQ_API_KEY`
-   - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `FRONTEND_URL` (URL frontend production)
-   - `ALLOWED_ORIGINS` (URL frontend, comma-separated)
-4. Deploy otomatis! 🚀
+### `MeetingResultResponse`
+
+```json
+{
+  "meeting_id": "uuid-rapat",
+  "title": "Weekly Sync Tim Produk",
+  "summary": "Ringkasan eksekutif dari AI...",
+  "action_items": [
+    {
+      "task": "Buat mockup halaman dashboard",
+      "assignee": "Raka",
+      "deadline": "2026-04-20"
+    }
+  ],
+  "recommendations": [
+    {
+      "title": "Prioritaskan fitur login",
+      "detail": "Fitur login harus selesai minggu ini sebagai fondasi...",
+      "priority": "high"
+    }
+  ],
+  "full_transcript": "Teks transkripsi plain...",
+  "diarized_transcript": "[Speaker 1]: Oke hari ini kita bahas...\n[Speaker 2]: Setuju, saya sudah siapkan...",
+  "speakers_detected": 2,
+  "created_at": "2026-04-17T08:00:00Z"
+}
+```
+
+---
+
+## 🔐 Autentikasi
+
+Sistem menggunakan **dua lapis autentikasi**:
+
+### Layer 1 — System Auth (API Key)
+
+Semua endpoint REST (kecuali `/health` dan `/auth/*`) mengharuskan header `X-API-Key`:
+
+```bash
+curl -H "X-API-Key: YOUR_API_KEY" \
+     https://your-server.com/api/v1/meetings/user/USER_ID
+```
+
+WebSocket menggunakan query param:
+
+```
+wss://your-server.com/api/v1/ws/transcribe/{meeting_id}?api_key=YOUR_API_KEY
+```
+
+| HTTP Status | Arti |
+|-------------|------|
+| `401` | `X-API-Key` tidak dikirim |
+| `403` | `X-API-Key` tidak valid |
+
+### Layer 2 — User Auth (Supabase JWT)
+
+```javascript
+// Signup
+await fetch("/api/v1/auth/signup", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "user@domain.com", password: "password123" })
+});
+
+// Login
+const { access_token, user_id } = await fetch("/api/v1/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "user@domain.com", password: "password123" })
+}).then(r => r.json());
+```
+
+---
+
+## 💻 Contoh Integrasi Frontend
+
+### Alur Lengkap (dengan Diarization)
+
+```javascript
+// 1. Buat meeting
+const { meeting_id } = await fetch("/api/v1/meetings/", {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
+  body: JSON.stringify({ title: "Weekly Standup", user_id: userId })
+}).then(r => r.json());
+
+// 2. Buka WebSocket & stream audio
+const ws = new WebSocket(
+  `wss://your-server.com/api/v1/ws/transcribe/${meeting_id}?api_key=${API_KEY}`
+);
+
+mediaRecorder.ondataavailable = (e) => {
+  if (e.data.size > 0) ws.send(e.data); // Kirim binary audio
+};
+
+// 3. Stop & terima hasil
+ws.send(JSON.stringify({ type: "stop" }));
+
+ws.onmessage = (e) => {
+  const msg = JSON.parse(e.data);
+  if (msg.type === "session_ended") {
+    console.log("Transkrip biasa:", msg.full_transcript);
+    console.log("Berlabel speaker:", msg.diarized_transcript);
+    // "[Speaker 1]: teks...\n[Speaker 2]: teks..."
+    console.log("Jumlah speaker:", msg.speakers_detected);
+  }
+};
+
+// 4. Analisis AI (kirim kedua transkrip)
+const analysis = await fetch(`/api/v1/meetings/${meeting_id}/finish`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
+  body: JSON.stringify({
+    meeting_id,
+    full_transcript:    plainTranscript,
+    diarized_transcript: diarizedTranscript // opsional, tingkatkan akurasi AI
+  })
+}).then(r => r.json());
+
+console.log("Summary:", analysis.summary);
+console.log("Action Items:", analysis.action_items);
+console.log("Rekomendasi:", analysis.recommendations);
+```
+
+---
+
+## 🗂️ Struktur Folder
+
+```
+UAS-BE-AI/
+├── app/
+│   ├── main.py                      # Entry point FastAPI + CORS + lifespan
+│   ├── core/
+│   │   ├── config.py                # Settings & env variables (pydantic-settings)
+│   │   └── auth.py                  # API Key dependency injection
+│   ├── api/
+│   │   └── endpoints/
+│   │       ├── auth.py              # Supabase Signup & Login
+│   │       ├── meetings.py          # REST CRUD rapat + finish + AI analysis
+│   │       ├── websocket.py         # WebSocket streaming + transcription + diarization
+│   │       └── health.py            # Health check endpoint
+│   ├── schemas/
+│   │   └── meeting.py               # Pydantic request/response models
+│   └── services/
+│       ├── whisper_service.py       # Groq Whisper API (verbose_json + timestamps)
+│       ├── diarization_service.py   # 👥 Speaker diarization (pause-based clustering)
+│       ├── ai_service.py            # LLM analysis (Groq Llama 3.3)
+│       └── supabase_service.py      # Database CRUD operations
+├── meeting-ai-tester.html           # HTML tester interaktif (buka di browser)
+├── supabase_schema.sql              # SQL schema + migration scripts
+├── requirements.txt                 # Python dependencies
+├── nixpacks.toml                    # Deploy config Railway
+├── railway.json                     # Railway service settings
+├── runtime.txt                      # Python version pin
+├── .env.example                     # Template environment variables
+└── README.md
+```
+
+---
+
+## 🧪 Testing
+
+### Menggunakan HTML Tester
+
+Buka `meeting-ai-tester.html` langsung di browser (tidak perlu server terpisah):
+
+1. Set **Backend URL** ke `http://localhost:8000`
+2. Masukkan **API Key** yang sesuai dengan `.env`
+3. Tab **Health** → klik *Run Health Check* untuk verifikasi koneksi
+4. Tab **Record** → Buat meeting → Rekam audio → Lihat hasil diarization di tab "Berlabel Speaker"
+5. Klik **Analisis AI** → lihat summary + action items + rekomendasi
+
+### Menggunakan Swagger UI
+
+Buka **[http://localhost:8000/docs](http://localhost:8000/docs)** untuk interactive API documentation.
+
+### Menggunakan cURL
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Buat meeting
+curl -X POST http://localhost:8000/api/v1/meetings/ \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: vcols-key-12345" \
+  -d '{"title": "Test Rapat", "user_id": "00000000-0000-0000-0000-000000000001"}'
+
+# Finish meeting dengan diarization
+curl -X POST http://localhost:8000/api/v1/meetings/{id}/finish \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: vcols-key-12345" \
+  -d '{
+    "meeting_id": "{id}",
+    "full_transcript": "teks transkrip di sini",
+    "diarized_transcript": "[Speaker 1]: teks...\n[Speaker 2]: teks..."
+  }'
+```
+
+---
+
+## 🚂 Deploy ke Railway
+
+1. **Push** repository ke GitHub
+2. **Connect** repo ke [Railway](https://railway.app)
+3. Tambahkan **Environment Variables** di Railway dashboard:
+
+| Variable | Keterangan |
+|----------|------------|
+| `API_KEYS` | API keys client (comma-separated) |
+| `GEMINI_API_KEY` | Groq API key untuk LLM |
+| `GROQ_API_KEY` | Groq API key untuk Whisper STT |
+| `SUPABASE_URL` | URL project Supabase |
+| `SUPABASE_ANON_KEY` | Anon key Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key Supabase |
+| `FRONTEND_URL` | URL frontend production |
+| `ALLOWED_ORIGINS` | Tambahan CORS origins (comma-separated) |
+
+4. Railway akan otomatis build & deploy menggunakan `nixpacks.toml` 🚀
+
+---
+
+## ⚠️ Troubleshooting
+
+| Masalah | Solusi |
+|---------|--------|
+| `422 Unprocessable Entity` pada `/finish` | Pastikan `meeting_id` dan `full_transcript` tidak kosong |
+| WebSocket error `4003` | API Key salah atau tidak dikirim sebagai query param |
+| Groq API `401` | Cek `GROQ_API_KEY` di `.env` |
+| Transkrip tidak ada speaker label | Audio terlalu pendek (<5 detik) atau tidak ada jeda antar pembicara |
+| `Column not found` error di Supabase | Jalankan migration SQL untuk kolom `diarized_transcript` dan `speakers_detected` |
+| CORS error dari frontend | Tambahkan URL frontend ke `ALLOWED_ORIGINS` di `.env` |
+
+---
+
+## 📄 License
+
+MIT License — Free to use for educational and commercial purposes.

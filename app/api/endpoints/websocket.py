@@ -1,9 +1,17 @@
 """
 WebSocket Endpoint — Kumpulkan SEMUA audio, proses saat stop.
 WebM stream harus utuh dari awal — tidak bisa diproses per chunk.
+
+Alur yang diperbarui (dengan Speaker Diarization):
+  1. Terima audio stream dari FE via WebSocket
+  2. Saat stop: kirim audio ke Groq Whisper (verbose_json) → dapat text + segments
+  3. Jalankan DiarizationService → assign speaker label ke setiap segment
+  4. Format transkrip berlabel: "[Speaker 1]: teks... [Speaker 2]: teks..."
+  5. Return ke FE: transcript biasa DAN diarized_transcript
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.services.whisper_service import WhisperService
+from app.services.diarization_service import DiarizationService
 from app.services.supabase_service import SupabaseService
 from app.core.config import get_settings
 import logging
@@ -68,18 +76,40 @@ async def websocket_transcribe(
                             })
 
                             try:
-                                transcript_text = await WhisperService.transcribe_audio_chunk(
+                                # ── Step 1: Transkripsi dengan timestamps ──────────
+                                whisper_result = await WhisperService.transcribe_with_timestamps(
                                     bytes(audio_buffer), language="id"
                                 )
+                                transcript_text = whisper_result.get("text", "")
+                                segments = whisper_result.get("segments", [])
 
                                 if transcript_text and transcript_text.strip():
-                                    # Simpan ke DB
+                                    # ── Step 2: Speaker Diarization ───────────────
+                                    await websocket.send_json({
+                                        "type": "processing",
+                                        "message": "Mendeteksi speaker...",
+                                    })
+
+                                    diarized_segments = DiarizationService.diarize(segments)
+                                    diarized_transcript = DiarizationService.format_labeled_transcript(
+                                        diarized_segments
+                                    )
+                                    speakers_detected = DiarizationService.count_speakers(
+                                        diarized_segments
+                                    )
+
+                                    logger.info(
+                                        f"Diarization: {speakers_detected} speaker terdeteksi."
+                                    )
+
+                                    # ── Step 3: Simpan transkrip ke DB ────────────
                                     await supabase.save_transcript_chunk(
                                         meeting_id=meeting_id,
                                         chunk_index=0,
                                         text=transcript_text,
                                     )
 
+                                    # ── Step 4: Kirim hasil ke FE ─────────────────
                                     await websocket.send_json({
                                         "type": "transcript",
                                         "chunk_index": 0,
@@ -90,30 +120,38 @@ async def websocket_transcribe(
                                     await websocket.send_json({
                                         "type": "session_ended",
                                         "full_transcript": transcript_text,
+                                        "diarized_transcript": diarized_transcript,
+                                        "speakers_detected": speakers_detected,
                                         "total_chunks": 1,
                                     })
                                 else:
                                     await websocket.send_json({
                                         "type": "session_ended",
                                         "full_transcript": "",
+                                        "diarized_transcript": "",
+                                        "speakers_detected": 0,
                                         "total_chunks": 0,
                                     })
 
                             except Exception as e:
-                                logger.error(f"Transcription error: {e}")
+                                logger.error(f"Transcription/diarization error: {e}")
                                 await websocket.send_json({
                                     "type": "error",
-                                    "message": f"Transkripsi gagal: {str(e)}",
+                                    "message": f"Pemrosesan audio gagal: {str(e)}",
                                 })
                                 await websocket.send_json({
                                     "type": "session_ended",
                                     "full_transcript": "",
+                                    "diarized_transcript": "",
+                                    "speakers_detected": 0,
                                     "total_chunks": 0,
                                 })
                         else:
                             await websocket.send_json({
                                 "type": "session_ended",
                                 "full_transcript": "",
+                                "diarized_transcript": "",
+                                "speakers_detected": 0,
                                 "total_chunks": 0,
                             })
                         break

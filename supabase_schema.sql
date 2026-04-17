@@ -15,10 +15,16 @@ CREATE TABLE IF NOT EXISTS meetings (
     full_transcript   TEXT,
     summary           TEXT,
     action_items      JSONB DEFAULT '[]'::jsonb,         -- Array of {task, assignee, deadline}
+    recommendations   JSONB DEFAULT '[]'::jsonb,         -- Array of {title, detail, priority}
+
+    -- Hasil Diarization (Speaker Detection)
+    diarized_transcript  TEXT,                           -- Transkrip dengan label speaker
+    speakers_detected    INTEGER,                        -- Jumlah speaker yang terdeteksi
 
     -- Metadata
     duration_seconds  INTEGER DEFAULT 0,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ,                         -- Diisi otomatis saat record diupdate
     finished_at       TIMESTAMPTZ
 );
 
@@ -70,3 +76,15 @@ CREATE POLICY "Users can manage own transcript chunks"
 --     "deadline": null
 --   }
 -- ]
+
+-- ─── Migration: Tambah kolom diarization ke existing table ────
+-- Jalankan ini jika tabel meetings sudah ada sebelumnya:
+-- ALTER TABLE meetings ADD COLUMN IF NOT EXISTS diarized_transcript TEXT;
+-- ALTER TABLE meetings ADD COLUMN IF NOT EXISTS speakers_detected INTEGER;
+-- ALTER TABLE meetings ADD COLUMN IF NOT EXISTS recommendations JSONB DEFAULT '[]'::jsonb;
+-- ALTER TABLE meetings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
+
+-- ─── Contoh diarized_transcript ───────────────────────────────
+-- "[Speaker 1]: Oke jadi hari ini kita bahas tentang roadmap Q3.\n
+--  [Speaker 2]: Betul, saya sudah siapkan slide-nya.\n
+--  [Speaker 1]: Bagus, kita mulai dari fitur yang paling prioritas."
