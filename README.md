@@ -156,22 +156,7 @@ Edit file `.env` dan isi variabel berikut:
 | `ALLOWED_ORIGINS` | ❌ | Origin tambahan, comma-separated |
 | `HF_TOKEN` | ❌ | Hugging Face token — opsional, untuk upgrade ke pyannote |
 
-### 3. Setup Database Supabase
-
-1. Buka **Supabase dashboard → SQL Editor**
-2. Copy-paste seluruh isi `supabase_schema.sql`
-3. Klik **Run**
-
-> **Jika tabel sudah ada sebelumnya**, jalankan migration berikut:
-> ```sql
-> ALTER TABLE meetings ADD COLUMN IF NOT EXISTS diarized_transcript TEXT;
-> ALTER TABLE meetings ADD COLUMN IF NOT EXISTS speakers_detected INTEGER;
-> ALTER TABLE meetings ADD COLUMN IF NOT EXISTS recommendations JSONB DEFAULT '[]'::jsonb;
-> ```
-
-4. *(Opsional)* Matikan "Confirm Email" di **Authentication → Providers → Email** untuk mempermudah testing lokal.
-
-### 4. Jalankan Server
+### 3. Jalankan Server
 
 ```bash
 # Development (dengan auto-reload)
