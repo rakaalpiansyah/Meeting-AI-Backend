@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from app.core.auth import verify_api_key
 
 # Load env variables (pastikan file .env sudah ada)
 load_dotenv()
@@ -13,7 +14,7 @@ key: str = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 supabase: Client = create_client(url, key)
 
 # Buat router khusus untuk Auth
-router = APIRouter(tags=["Authentication"])
+router = APIRouter(tags=["Authentication"], dependencies=[Depends(verify_api_key)])
 
 # Model data yang dikirim oleh user (dari Frontend/Postman)
 class UserCredentials(BaseModel):
