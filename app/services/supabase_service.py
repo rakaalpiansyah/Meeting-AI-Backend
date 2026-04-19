@@ -99,6 +99,29 @@ class SupabaseService:
         )
         return len(response.data) > 0
 
+    async def update_meeting(
+        self,
+        meeting_id: str,
+        update_fields: dict,
+    ) -> dict | None:
+        if not update_fields:
+            return await self.get_meeting_by_id(meeting_id)
+
+        update_fields["updated_at"] = datetime.utcnow().isoformat()
+
+        response = (
+            self.client.table("meetings")
+            .update(update_fields)
+            .eq("id", meeting_id)
+            .execute()
+        )
+
+        if not response.data:
+            return None
+
+        logger.info(f"Meeting updated: {meeting_id} | fields: {list(update_fields.keys())}")
+        return response.data[0]
+
     async def save_transcript_chunk(
         self, meeting_id: str, chunk_index: int, text: str
     ) -> None:
@@ -109,3 +132,25 @@ class SupabaseService:
             "created_at": datetime.utcnow().isoformat(),
         }
         self.client.table("transcript_chunks").insert(data).execute()
+
+    async def upload_audio(
+        self,
+        file_content: bytes,
+        file_path: str,
+        content_type: str = "audio/wav",
+    ) -> dict:
+        """
+        Mengunggah konten file ke storage bucket audio-uploads.
+        Path file disarankan menggunakan format: 'user_id/meeting_id.wav'
+        """
+        try:
+            # Menggunakan client yang sudah terautentikasi dengan token user
+            response = self.client.storage.from_("audio-uploads").upload(
+                path=file_path,
+                file=file_content,
+                file_options={"content-type": content_type, "upsert": "true"}
+            )
+            return response
+        except Exception as e:
+            logger.error(f"Gagal mengunggah ke storage: {str(e)}")
+            raise e

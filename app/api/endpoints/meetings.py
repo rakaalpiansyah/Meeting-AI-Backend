@@ -3,7 +3,7 @@ Meeting Endpoints — REST API untuk operasi rapat.
 WebSocket handles real-time audio.
 REST API handles: buat rapat, finish + analisis, ambil history, hapus.
 """
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List
 from app.schemas.meeting import (
@@ -11,6 +11,8 @@ from app.schemas.meeting import (
     MeetingFinishRequest,
     MeetingResultResponse,
     MeetingListItem,
+    MeetingUpdateRequest,
+    MeetingUpdateResponse,
     ActionItem,
     Recommendation,
 )
@@ -50,25 +52,11 @@ async def create_meeting(
 
 
 @router.post("/{meeting_id}/finish", response_model=MeetingResultResponse)
-<<<<<<< Updated upstream
-async def finish_meeting(meeting_id: str, payload: MeetingFinishRequest):
-    """
-    Selesaikan rapat dan jalankan analisis AI.
-    Dipanggil FE setelah WebSocket mengirim 'session_ended'.
-
-    Alur:
-    1. Terima transkrip lengkap dari FE
-    2. Kirim ke AI untuk analisis
-    3. Simpan hasil ke Supabase
-    4. Return hasil ke FE
-    """
-=======
 async def finish_meeting(
     meeting_id: str, 
     payload: MeetingFinishRequest,
     token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)
 ):
->>>>>>> Stashed changes
     if not payload.full_transcript.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -83,9 +71,6 @@ async def finish_meeting(
             detail=f"Meeting {meeting_id} tidak ditemukan.",
         )
 
-<<<<<<< Updated upstream
-    # ── Analisis AI ─────────────────────────────────────────
-=======
     # ── Tentukan transkrip untuk AI ───────────────────────────
     transcript_for_ai = (
         payload.diarized_transcript
@@ -102,7 +87,6 @@ async def finish_meeting(
         logger.info(f"Meeting {meeting_id}: diarized_transcript tidak tersedia, pakai plain transcript.")
 
     # ── Analisis AI ───────────────────────────────────────────
->>>>>>> Stashed changes
     logger.info(f"Analyzing meeting {meeting_id} with AI...")
     ai = AIService()
     analysis = await ai.analyze_meeting(
@@ -176,8 +160,6 @@ async def get_meeting_detail(
     )
 
 
-<<<<<<< Updated upstream
-=======
 @router.patch("/{meeting_id}", response_model=MeetingUpdateResponse)
 async def update_meeting(
     meeting_id: str, 
@@ -270,7 +252,6 @@ async def update_meeting(
     )
 
 
->>>>>>> Stashed changes
 @router.delete("/{meeting_id}")
 async def delete_meeting(
     meeting_id: str, 
@@ -289,3 +270,56 @@ async def delete_meeting(
             detail="Meeting tidak ditemukan atau Anda tidak punya akses.",
         )
     return {"message": "Meeting berhasil dihapus."}
+
+
+@router.post("/{meeting_id}/upload")
+async def upload_meeting_audio(
+    meeting_id: str,
+    file: UploadFile = File(...),
+    token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)
+):
+    """
+    Endpoint untuk mengunggah file rekaman audio.
+    Lokasi penyimpanan: audio-uploads/{user_id}/{meeting_id}.wav
+    """
+    supabase = SupabaseService(access_token=token.credentials)
+    
+    # Validasi keberadaan meeting dan ambil user_id
+    meeting = await supabase.get_meeting_by_id(meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting tidak ditemukan atau akses ditolak.")
+    
+    user_id = meeting["user_id"]
+    file_content = await file.read()
+    if not file_content:
+        raise HTTPException(status_code=400, detail="File audio kosong.")
+    
+    # Tentukan path penyimpanan
+    file_ext = file.filename.split(".")[-1] if "." in file.filename else "wav"
+    storage_path = f"{user_id}/{meeting_id}.{file_ext}"
+    
+    try:
+        await supabase.upload_audio(
+            file_content,
+            storage_path,
+            content_type=file.content_type or "application/octet-stream",
+        )
+    except Exception as e:
+        logger.exception(f"Upload ke storage gagal: {str(e)}")
+        raise HTTPException(status_code=500, detail="Gagal upload ke storage.")
+
+    # Simpan path audio ke record meeting; jika gagal, upload tetap dianggap berhasil.
+    try:
+        await supabase.update_meeting(meeting_id, {"audio_path": storage_path})
+        return {
+            "status": "success",
+            "storage_path": storage_path,
+            "message": "Rekaman berhasil diunggah ke storage."
+        }
+    except Exception as e:
+        logger.exception(f"Upload sukses tapi update audio_path gagal: {str(e)}")
+        return {
+            "status": "partial_success",
+            "storage_path": storage_path,
+            "message": "Audio berhasil diunggah, tapi metadata audio_path di database gagal diperbarui."
+        }

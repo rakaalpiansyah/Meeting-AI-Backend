@@ -24,6 +24,7 @@ class MeetingCreateRequest(BaseModel):
 class MeetingFinishRequest(BaseModel):
     meeting_id: str
     full_transcript: str
+    diarized_transcript: Optional[str] = None
 
 
 # ─── Response Schemas ─────────────────────────────────────────
@@ -63,6 +64,23 @@ class MeetingListItem(BaseModel):
     status: Optional[str] = None
     created_at: datetime
     duration_seconds: Optional[int] = None
+
+
+class MeetingUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    full_transcript: Optional[str] = None
+    re_analyze: bool = False
+
+
+class MeetingUpdateResponse(BaseModel):
+    meeting_id: str
+    title: str
+    full_transcript: Optional[str] = None
+    summary: Optional[str] = None
+    action_items: List[ActionItem] = []
+    recommendations: List[Recommendation] = []
+    re_analyzed: bool = False
+    message: str
 
 
 class ErrorResponse(BaseModel):
