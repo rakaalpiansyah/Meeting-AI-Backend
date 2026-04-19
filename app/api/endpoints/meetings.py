@@ -3,7 +3,7 @@ Meeting Endpoints — REST API untuk operasi rapat.
 WebSocket handles real-time audio.
 REST API handles: buat rapat, finish + analisis, ambil history, hapus.
 """
-from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List
 from app.schemas.meeting import (
@@ -11,6 +11,7 @@ from app.schemas.meeting import (
     MeetingFinishRequest,
     MeetingResultResponse,
     MeetingListItem,
+    MeetingListResponse,
     MeetingUpdateRequest,
     MeetingUpdateResponse,
     ActionItem,
@@ -111,6 +112,52 @@ async def finish_meeting(
         recommendations=analysis.get("recommendations", []),
         full_transcript=payload.full_transcript,
         created_at=datetime.fromisoformat(saved["created_at"]),
+    )
+
+
+@router.get("/", response_model=MeetingListResponse)
+async def get_my_meetings(
+    status_filter: str | None = Query(None, alias="status"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    token: HTTPAuthorizationCredentials = Depends(token_auth_scheme),
+):
+    """
+    Ambil daftar meeting milik user yang sedang login.
+    Mendukung pagination (limit/offset) dan filter status.
+    """
+    allowed_status = {"recording", "completed", "failed"}
+    if status_filter and status_filter not in allowed_status:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filter status tidak valid. Gunakan: recording | completed | failed.",
+        )
+
+    supabase = SupabaseService(access_token=token.credentials)
+    meetings, total = await supabase.get_my_meetings(
+        limit=limit,
+        offset=offset,
+        status_filter=status_filter,
+    )
+
+    items = [
+        MeetingListItem(
+            id=m["id"],
+            title=m["title"],
+            summary=m.get("summary"),
+            status=m.get("status"),
+            created_at=datetime.fromisoformat(m["created_at"]),
+            duration_seconds=m.get("duration_seconds"),
+        )
+        for m in meetings
+    ]
+
+    return MeetingListResponse(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_more=(offset + len(items)) < total,
     )
 
 

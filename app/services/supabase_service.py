@@ -89,6 +89,29 @@ class SupabaseService:
         )
         return response.data
 
+    async def get_my_meetings(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        status_filter: str | None = None,
+    ) -> tuple[list[dict], int]:
+        query = (
+            self.client.table("meetings")
+            .select(
+                "id, title, summary, created_at, duration_seconds, status",
+                count="exact",
+            )
+            .order("created_at", desc=True)
+            .range(offset, offset + limit - 1)
+        )
+
+        if status_filter:
+            query = query.eq("status", status_filter)
+
+        response = query.execute()
+        total = response.count or 0
+        return response.data, total
+
     async def delete_meeting(self, meeting_id: str, user_id: str) -> bool:
         response = (
             self.client.table("meetings")

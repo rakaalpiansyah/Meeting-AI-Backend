@@ -66,6 +66,14 @@ class MeetingListItem(BaseModel):
     duration_seconds: Optional[int] = None
 
 
+class MeetingListResponse(BaseModel):
+    items: List[MeetingListItem]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
 class MeetingUpdateRequest(BaseModel):
     title: Optional[str] = None
     full_transcript: Optional[str] = None
