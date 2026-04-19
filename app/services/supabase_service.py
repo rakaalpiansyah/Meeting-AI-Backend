@@ -2,7 +2,7 @@
 Supabase Service — Layer database.
 Semua operasi CRUD ke Supabase terpusat di sini.
 """
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 from app.core.config import get_settings
 from app.schemas.meeting import ActionItem
 import logging
@@ -13,11 +13,19 @@ logger = logging.getLogger(__name__)
 
 class SupabaseService:
 
-    def __init__(self):
+    def __init__(self, access_token: str | None = None):
         settings = get_settings()
+        
+        # 1. Siapkan identitas user (token) jika ada
+        options = ClientOptions()
+        if access_token:
+            options.headers.update({"Authorization": f"Bearer {access_token}"})
+
+        # 2. Gunakan ANON_KEY (bukan service_role_key) agar RLS aktif!
         self.client: Client = create_client(
             settings.supabase_url,
-            settings.supabase_service_role_key,
+            settings.supabase_anon_key, 
+            options=options
         )
 
     async def create_meeting(self, title: str, user_id: str) -> dict:

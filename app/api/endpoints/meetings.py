@@ -4,6 +4,7 @@ WebSocket handles real-time audio.
 REST API handles: buat rapat, finish + analisis, ambil history, hapus.
 """
 from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List
 from app.schemas.meeting import (
     MeetingCreateRequest,
@@ -22,15 +23,20 @@ import logging
 router = APIRouter(prefix="/meetings", tags=["Meetings"], dependencies=[Depends(verify_api_key)])
 logger = logging.getLogger(__name__)
 
+# Skema untuk mengekstrak Bearer Token dari Header
+token_auth_scheme = HTTPBearer()
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_meeting(payload: MeetingCreateRequest):
+async def create_meeting(
+    payload: MeetingCreateRequest,
+    token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)
+):
     """
     Buat sesi rapat baru.
     Dipanggil FE saat user menekan tombol 'Mulai Rapat'.
     Returns meeting_id yang digunakan untuk WebSocket session.
     """
-    supabase = SupabaseService()
+    supabase = SupabaseService(access_token=token.credentials)
     meeting = await supabase.create_meeting(
         title=payload.title,
         user_id=payload.user_id,
@@ -44,6 +50,7 @@ async def create_meeting(payload: MeetingCreateRequest):
 
 
 @router.post("/{meeting_id}/finish", response_model=MeetingResultResponse)
+<<<<<<< Updated upstream
 async def finish_meeting(meeting_id: str, payload: MeetingFinishRequest):
     """
     Selesaikan rapat dan jalankan analisis AI.
@@ -55,13 +62,20 @@ async def finish_meeting(meeting_id: str, payload: MeetingFinishRequest):
     3. Simpan hasil ke Supabase
     4. Return hasil ke FE
     """
+=======
+async def finish_meeting(
+    meeting_id: str, 
+    payload: MeetingFinishRequest,
+    token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)
+):
+>>>>>>> Stashed changes
     if not payload.full_transcript.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Transkrip tidak boleh kosong.",
         )
 
-    supabase = SupabaseService()
+    supabase = SupabaseService(access_token=token.credentials)
     meeting = await supabase.get_meeting_by_id(meeting_id)
     if not meeting:
         raise HTTPException(
@@ -69,7 +83,26 @@ async def finish_meeting(meeting_id: str, payload: MeetingFinishRequest):
             detail=f"Meeting {meeting_id} tidak ditemukan.",
         )
 
+<<<<<<< Updated upstream
     # ── Analisis AI ─────────────────────────────────────────
+=======
+    # ── Tentukan transkrip untuk AI ───────────────────────────
+    transcript_for_ai = (
+        payload.diarized_transcript
+        if payload.diarized_transcript and payload.diarized_transcript.strip()
+        else payload.full_transcript
+    )
+
+    has_diarization = bool(
+        payload.diarized_transcript and payload.diarized_transcript.strip()
+    )
+    if has_diarization:
+        logger.info(f"Meeting {meeting_id}: menggunakan diarized_transcript untuk AI.")
+    else:
+        logger.info(f"Meeting {meeting_id}: diarized_transcript tidak tersedia, pakai plain transcript.")
+
+    # ── Analisis AI ───────────────────────────────────────────
+>>>>>>> Stashed changes
     logger.info(f"Analyzing meeting {meeting_id} with AI...")
     ai = AIService()
     analysis = await ai.analyze_meeting(
@@ -98,12 +131,15 @@ async def finish_meeting(meeting_id: str, payload: MeetingFinishRequest):
 
 
 @router.get("/user/{user_id}", response_model=List[MeetingListItem])
-async def get_user_meetings(user_id: str):
+async def get_user_meetings(
+    user_id: str,
+    token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)
+):
     """
     Ambil semua rapat milik user — untuk halaman history.
     Diurutkan dari terbaru ke terlama.
     """
-    supabase = SupabaseService()
+    supabase = SupabaseService(access_token=token.credentials)
     meetings = await supabase.get_meetings_by_user(user_id)
     return [
         MeetingListItem(
@@ -119,9 +155,12 @@ async def get_user_meetings(user_id: str):
 
 
 @router.get("/{meeting_id}", response_model=MeetingResultResponse)
-async def get_meeting_detail(meeting_id: str):
+async def get_meeting_detail(
+    meeting_id: str,
+    token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)
+):
     """Ambil detail lengkap satu rapat — untuk halaman detail."""
-    supabase = SupabaseService()
+    supabase = SupabaseService(access_token=token.credentials)
     meeting = await supabase.get_meeting_by_id(meeting_id)
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting tidak ditemukan.")
@@ -137,13 +176,112 @@ async def get_meeting_detail(meeting_id: str):
     )
 
 
+<<<<<<< Updated upstream
+=======
+@router.patch("/{meeting_id}", response_model=MeetingUpdateResponse)
+async def update_meeting(
+    meeting_id: str, 
+    payload: MeetingUpdateRequest,
+    token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)
+):
+    supabase = SupabaseService(access_token=token.credentials)
+    meeting = await supabase.get_meeting_by_id(meeting_id)
+    if not meeting:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Meeting {meeting_id} tidak ditemukan.",
+        )
+
+    # ── Build partial update dict ────────────────────────────────
+    update_fields: dict = {}
+    if payload.title is not None:
+        if not payload.title.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Judul rapat tidak boleh kosong.",
+            )
+        update_fields["title"] = payload.title.strip()
+
+    if payload.full_transcript is not None:
+        if not payload.full_transcript.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Transkrip tidak boleh kosong.",
+            )
+        update_fields["full_transcript"] = payload.full_transcript.strip()
+
+    # ── Simpan perubahan ke DB ───────────────────────────────────
+    updated = await supabase.update_meeting(meeting_id, update_fields)
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Gagal mengupdate meeting — tidak ditemukan.",
+        )
+
+    re_analyzed = False
+    analysis: dict = {}
+
+    # ── Re-analyze AI jika diminta ───────────────────────────────
+    if payload.re_analyze:
+        transcript_for_ai = (
+            update_fields.get("full_transcript")
+            or meeting.get("full_transcript", "")
+        )
+        meeting_title = update_fields.get("title") or meeting.get("title", "")
+
+        if transcript_for_ai.strip():
+            logger.info(f"Re-analyzing meeting {meeting_id} after edit...")
+            ai = AIService()
+            analysis = await ai.analyze_meeting(
+                transcript=transcript_for_ai,
+                meeting_title=meeting_title,
+            )
+            ai_fields = {
+                "summary": analysis["summary"],
+                "action_items": [item.model_dump() for item in analysis["action_items"]],
+                "recommendations": analysis.get("recommendations", []),
+            }
+            await supabase.update_meeting(meeting_id, ai_fields)
+            re_analyzed = True
+            logger.info(f"Re-analysis done for meeting {meeting_id} ✓")
+        else:
+            logger.warning(f"re_analyze=True tapi tidak ada transkrip untuk meeting {meeting_id}.")
+
+    # ── Ambil data final setelah semua update ────────────────────
+    final = await supabase.get_meeting_by_id(meeting_id)
+
+    return MeetingUpdateResponse(
+        meeting_id=meeting_id,
+        title=final.get("title", ""),
+        full_transcript=final.get("full_transcript"),
+        summary=final.get("summary"),
+        action_items=[
+            ActionItem(**item) for item in final.get("action_items") or []
+        ],
+        recommendations=[
+            Recommendation(**r) for r in final.get("recommendations") or []
+            if isinstance(r, dict)
+        ],
+        re_analyzed=re_analyzed,
+        message=(
+            f"Meeting diperbarui{'+ AI re-analyzed' if re_analyzed else ''}. "
+            f"Field diubah: {', '.join(update_fields.keys()) or 'tidak ada'}."
+        ),
+    )
+
+
+>>>>>>> Stashed changes
 @router.delete("/{meeting_id}")
-async def delete_meeting(meeting_id: str, user_id: str):
+async def delete_meeting(
+    meeting_id: str, 
+    user_id: str,
+    token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)
+):
     """
     Hapus rapat.
     user_id dikirim sebagai query param — validasi kepemilikan di service.
     """
-    supabase = SupabaseService()
+    supabase = SupabaseService(access_token=token.credentials)
     deleted = await supabase.delete_meeting(meeting_id, user_id)
     if not deleted:
         raise HTTPException(
