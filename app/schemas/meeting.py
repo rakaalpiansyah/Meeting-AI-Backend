@@ -99,6 +99,31 @@ class MeetingListItem(BaseModel):
     duration_seconds: Optional[int] = None
 
 
+class MeetingListResponse(BaseModel):
+    items: List[MeetingListItem]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
+class MeetingUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    full_transcript: Optional[str] = None
+    re_analyze: bool = False
+
+
+class MeetingUpdateResponse(BaseModel):
+    meeting_id: str
+    title: str
+    full_transcript: Optional[str] = None
+    summary: Optional[str] = None
+    action_items: List[ActionItem] = []
+    recommendations: List[Recommendation] = []
+    re_analyzed: bool = False
+    message: str
+
+
 class ErrorResponse(BaseModel):
     detail: str
     code: Optional[str] = None
