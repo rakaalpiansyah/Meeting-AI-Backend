@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from app.core.auth import verify_api_key
 
 # Load env variables (pastikan file .env sudah ada)
 load_dotenv()
@@ -13,15 +14,29 @@ key: str = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 supabase: Client = create_client(url, key)
 
 # Buat router khusus untuk Auth
-router = APIRouter(tags=["Authentication"])
+router = APIRouter(tags=["Authentication"], dependencies=[Depends(verify_api_key)])
 
 # Model data yang dikirim oleh user (dari Frontend/Postman)
 class UserCredentials(BaseModel):
     email: str
     password: str
 
+# Model data khusus untuk Signup (butuh konfirmasi password)
+class UserSignup(BaseModel):
+    email: str
+    password: str
+    confirm_password: str
+
 @router.post("/signup")
-def register_user(user: UserCredentials):
+def register_user(user: UserSignup):
+    # 1. Pengecekan Typo Password (Validasi)
+    if user.password != user.confirm_password:
+        raise HTTPException(
+            status_code=400, 
+            detail="Password dan Konfirmasi Password tidak sama! Silakan cek kembali."
+        )
+
+    # 2. Jika password sama, lanjutkan pendaftaran ke Supabase
     try:
         response = supabase.auth.sign_up({
             "email": user.email,
@@ -34,7 +49,6 @@ def register_user(user: UserCredentials):
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Gagal registrasi: {str(e)}")
-
 @router.post("/login")
 def login_user(user: UserCredentials):
     try:

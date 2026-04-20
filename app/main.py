@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 Starting Meeting AI Backend...")
-    logger.info("✅ Backend siap menerima request (Groq Whisper API mode).")
+    logger.info("✅ Backend siap menerima request (Groq Whisper API + Speaker Diarization).")
+    logger.info("🎤 Speaker Diarization: aktif via pause-based clustering (no ML model required).")
     yield
     logger.info("⛔ Shutting down Meeting AI Backend...")
 
@@ -35,7 +36,8 @@ app = FastAPI(
 Backend untuk aplikasi perekam dan analisis rapat otomatis berbasis AI.
 
 ### Fitur:
-- 🎙️ **Real-time transcription** via WebSocket + Groq Whisper API
+- 🎤 **Real-time transcription** via WebSocket + Groq Whisper API
+- 👥 **Speaker Diarization** — deteksi siapa yang berbicara otomatis (tanpa ML model lokal)
 - 🧠 **Meeting analysis** via AI LLM (summary + action items + rekomendasi strategis)
 - 💾 **Persistent storage** via Supabase
 - 🔐 **API Key auth** — semua endpoint (kecuali `/health`) dilindungi `X-API-Key`
@@ -43,8 +45,14 @@ Backend untuk aplikasi perekam dan analisis rapat otomatis berbasis AI.
 ### Cara Pakai:
 1. `POST /api/v1/meetings/` — buat sesi rapat baru, dapat `meeting_id`
 2. `WS /api/v1/ws/transcribe/{meeting_id}?api_key=KEY` — stream audio real-time
-3. `POST /api/v1/meetings/{id}/finish` — kirim transkrip, dapatkan analisis AI
-4. `GET /api/v1/meetings/user/{user_id}` — ambil history rapat per user
+3. `session_ended` event akan berisi `diarized_transcript` dan `speakers_detected`
+4. `POST /api/v1/meetings/{id}/finish` — kirim transkrip + diarized, dapatkan analisis AI
+5. `GET /api/v1/meetings/user/{user_id}` — ambil history rapat per user
+
+### Speaker Diarization:
+Menggunakan **Groq Whisper verbose_json** (timestamps per segment) + algoritma
+pause-based speaker clustering. Jeda >1.2 detik antar segment = indikasi ganti speaker.
+Hasil: `[Speaker 1]: teks...\n[Speaker 2]: teks...`
     """,
     docs_url="/docs",
     redoc_url="/redoc",

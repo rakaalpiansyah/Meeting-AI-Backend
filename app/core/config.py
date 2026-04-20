@@ -4,7 +4,7 @@ Semua env variable dibaca dari sini — satu sumber kebenaran.
 """
 from pydantic_settings import BaseSettings
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # ── AI ───────────────────────────────────────────────────
     gemini_api_key: str
     groq_api_key: str  # Groq Cloud API key untuk Whisper STT
+    hf_token: Optional[str] = None  # Hugging Face token — opsional, untuk pyannote di masa depan
 
     # ── Supabase ─────────────────────────────────────────────
     supabase_url: str

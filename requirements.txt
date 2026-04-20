@@ -19,3 +19,8 @@ python-dotenv==1.0.1
 pydantic
 pydantic-settings==2.2.1
 httpx==0.27.0
+
+# ─── Speaker Diarization ──────────────────────────────────────
+# Pure Python implementation — tidak butuh torch/pyannote/ML model berat
+# Menggunakan timestamps dari Groq Whisper verbose_json + pause-based clustering
+# Tidak ada dependency tambahan — semua logic ada di app/services/diarization_service.py

@@ -24,7 +24,7 @@ class MeetingCreateRequest(BaseModel):
 class MeetingFinishRequest(BaseModel):
     meeting_id: str
     full_transcript: str
-    diarized_transcript: Optional[str] = None
+    diarized_transcript: Optional[str] = None  # Transkrip berlabel speaker (dari diarization)
 
 
 # ─── Response Schemas ─────────────────────────────────────────
@@ -54,7 +54,40 @@ class MeetingResultResponse(BaseModel):
     action_items: List[ActionItem]
     recommendations: List[Recommendation] = []
     full_transcript: str
+    diarized_transcript: Optional[str] = None  # Transkrip dengan label speaker
+    speakers_detected: Optional[int] = None    # Jumlah speaker yang terdeteksi
     created_at: datetime
+
+
+class MeetingUpdateRequest(BaseModel):
+    """
+    Request schema untuk PATCH /meetings/{id} — edit rapat.
+    Semua field opsional, hanya field yang dikirim yang diupdate (partial update).
+    """
+    title: Optional[str] = None             # Ganti judul rapat
+    full_transcript: Optional[str] = None   # Koreksi transkrip manual
+    re_analyze: bool = False                # True → jalankan ulang AI analisis setelah update
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "title": "Weekly Sync Tim Produk — Updated",
+                "full_transcript": "Teks transkrip yang sudah dikoreksi manual...",
+                "re_analyze": True,
+            }
+        }
+
+
+class MeetingUpdateResponse(BaseModel):
+    """Response schema untuk PATCH /meetings/{id}."""
+    meeting_id: str
+    title: str
+    full_transcript: Optional[str] = None
+    summary: Optional[str] = None
+    action_items: List[ActionItem] = []
+    recommendations: List[Recommendation] = []
+    re_analyzed: bool = False
+    message: str
 
 
 class MeetingListItem(BaseModel):

@@ -1,7 +1,7 @@
 """
 Meeting Endpoints — REST API untuk operasi rapat.
 WebSocket handles real-time audio.
-REST API handles: buat rapat, finish + analisis, ambil history, hapus.
+REST API handles: buat rapat, finish + analisis, edit, ambil history, hapus.
 """
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -9,6 +9,8 @@ from typing import List
 from app.schemas.meeting import (
     MeetingCreateRequest,
     MeetingFinishRequest,
+    MeetingUpdateRequest,
+    MeetingUpdateResponse,
     MeetingResultResponse,
     MeetingListItem,
     MeetingListResponse,
@@ -54,10 +56,21 @@ async def create_meeting(
 
 @router.post("/{meeting_id}/finish", response_model=MeetingResultResponse)
 async def finish_meeting(
-    meeting_id: str, 
+    meeting_id: str,
     payload: MeetingFinishRequest,
     token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)
 ):
+    """
+    Selesaikan rapat dan jalankan analisis AI.
+    Dipanggil FE setelah WebSocket mengirim 'session_ended'.
+
+    Alur:
+    1. Terima transkrip lengkap dari FE (raw + diarized jika tersedia)
+    2. Gunakan diarized_transcript untuk AI (konteks speaker lebih baik)
+    3. Kirim ke AI untuk analisis
+    4. Simpan hasil ke Supabase
+    5. Return hasil ke FE
+    """
     if not payload.full_transcript.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -73,6 +86,8 @@ async def finish_meeting(
         )
 
     # ── Tentukan transkrip untuk AI ───────────────────────────
+    # Gunakan diarized_transcript jika FE mengirimnya (lebih baik untuk AI)
+    # Fallback ke full_transcript jika tidak ada
     transcript_for_ai = (
         payload.diarized_transcript
         if payload.diarized_transcript and payload.diarized_transcript.strip()
@@ -91,17 +106,18 @@ async def finish_meeting(
     logger.info(f"Analyzing meeting {meeting_id} with AI...")
     ai = AIService()
     analysis = await ai.analyze_meeting(
-        transcript=payload.full_transcript,
+        transcript=transcript_for_ai,
         meeting_title=meeting["title"],
     )
 
-    # ── Simpan ke Supabase ──────────────────────────────────
+    # ── Simpan ke Supabase ────────────────────────────────────
     saved = await supabase.save_meeting_result(
         meeting_id=meeting_id,
         full_transcript=payload.full_transcript,
         summary=analysis["summary"],
         action_items=analysis["action_items"],
         recommendations=analysis.get("recommendations", []),
+        diarized_transcript=payload.diarized_transcript,
     )
 
     return MeetingResultResponse(
@@ -111,6 +127,7 @@ async def finish_meeting(
         action_items=analysis["action_items"],
         recommendations=analysis.get("recommendations", []),
         full_transcript=payload.full_transcript,
+        diarized_transcript=payload.diarized_transcript,
         created_at=datetime.fromisoformat(saved["created_at"]),
     )
 
@@ -209,10 +226,25 @@ async def get_meeting_detail(
 
 @router.patch("/{meeting_id}", response_model=MeetingUpdateResponse)
 async def update_meeting(
-    meeting_id: str, 
+    meeting_id: str,
     payload: MeetingUpdateRequest,
     token: HTTPAuthorizationCredentials = Depends(token_auth_scheme)
 ):
+    """
+    Edit data rapat — partial update (judul dan/atau transkrip).
+
+    Alur:
+    1. Validasi meeting ada di DB
+    2. Build update_fields hanya dari field yang dikirim (tidak None)
+    3. Simpan perubahan ke Supabase
+    4. Jika re_analyze=True DAN ada transkrip (baru atau existing), jalankan ulang AI
+    5. Return data terbaru
+
+    Field yang bisa diedit:
+    - title: ganti judul rapat
+    - full_transcript: koreksi hasil transkripsi secara manual
+    - re_analyze: set True untuk re-generate summary + action items + rekomendasi
+    """
     supabase = SupabaseService(access_token=token.credentials)
     meeting = await supabase.get_meeting_by_id(meeting_id)
     if not meeting:
@@ -252,6 +284,7 @@ async def update_meeting(
 
     # ── Re-analyze AI jika diminta ───────────────────────────────
     if payload.re_analyze:
+        # Gunakan transkrip baru jika ada, fallback ke yang sudah tersimpan
         transcript_for_ai = (
             update_fields.get("full_transcript")
             or meeting.get("full_transcript", "")
@@ -265,6 +298,7 @@ async def update_meeting(
                 transcript=transcript_for_ai,
                 meeting_title=meeting_title,
             )
+            # Simpan hasil AI yang baru ke DB
             ai_fields = {
                 "summary": analysis["summary"],
                 "action_items": [item.model_dump() for item in analysis["action_items"]],
