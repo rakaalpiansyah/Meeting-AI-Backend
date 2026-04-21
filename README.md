@@ -388,7 +388,7 @@ Meeting-Ai-Backend/
 │       ├── diarization_service.py   # 👥 Speaker diarization (pause-based clustering)
 │       ├── ai_service.py            # LLM analysis (Groq Llama 3.3)
 │       └── supabase_service.py      # Database CRUD operations
-├── index.html           # HTML tester interaktif (buka di browser)
+├── index.html                       # HTML tester interaktif (buka di browser)
 ├── supabase_schema.sql              # SQL schema + migration scripts
 ├── requirements.txt                 # Python dependencies
 ├── nixpacks.toml                    # Deploy config Railway
@@ -422,7 +422,7 @@ py -m http.server 5500
 
 Lalu buka:
 
-`http://localhost:5500/meeting-ai-tester.html`
+`http://localhost:5500/index.html`
 
 > Catatan: Menjalankan via static server lebih direkomendasikan dibanding buka file langsung (`file://`) karena lebih konsisten untuk request API, WebSocket, dan permission browser.
 
