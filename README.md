@@ -367,7 +367,7 @@ console.log("Rekomendasi:", analysis.recommendations);
 ## 🗂️ Struktur Folder
 
 ```
-UAS-BE-AI/
+Meeting-Ai-Backend/
 ├── app/
 │   ├── main.py                      # Entry point FastAPI + CORS + lifespan
 │   ├── core/
