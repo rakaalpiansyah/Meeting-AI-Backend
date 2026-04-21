@@ -388,7 +388,7 @@ Meeting-Ai-Backend/
 │       ├── diarization_service.py   # 👥 Speaker diarization (pause-based clustering)
 │       ├── ai_service.py            # LLM analysis (Groq Llama 3.3)
 │       └── supabase_service.py      # Database CRUD operations
-├── meeting-ai-tester.html           # HTML tester interaktif (buka di browser)
+├── index.html           # HTML tester interaktif (buka di browser)
 ├── supabase_schema.sql              # SQL schema + migration scripts
 ├── requirements.txt                 # Python dependencies
 ├── nixpacks.toml                    # Deploy config Railway
@@ -436,7 +436,7 @@ Lalu buka:
 
 #### 4) Opsi Cepat (Tanpa Static Server)
 
-`meeting-ai-tester.html` tetap bisa dibuka langsung di browser, tetapi jika muncul kendala permission atau koneksi, gunakan metode static server pada langkah (2).
+`index.html` tetap bisa dibuka langsung di browser, tetapi jika muncul kendala permission atau koneksi, gunakan metode static server pada langkah (2).
 
 ### Menggunakan Swagger UI
 
