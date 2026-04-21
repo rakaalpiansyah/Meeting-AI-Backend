@@ -1,7 +1,8 @@
 # 🎙️ Meeting AI — FastAPI Backend
-https://meeting-ai-backend-production-b61e.up.railway.app/docs
 
 > **Backend layanan AI** untuk perekaman, transkripsi otomatis, deteksi speaker, dan analisis rapat berbasis kecerdasan buatan.
+
+🚀 **Live Production:** [https://meeting-ai-backend-production-b61e.up.railway.app/docs](https://meeting-ai-backend-production-b61e.up.railway.app/docs)
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
