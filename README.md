@@ -126,7 +126,7 @@ Groq Whisper (verbose_json)
 ### 1. Clone & Install
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/rakaalpiansyah/Meeting-AI-Backend.git
 cd UAS-BE-AI
 
 # Buat virtual environment
