@@ -1,1064 +1,2787 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Meeting AI — Backend Tester</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #0a0a0f; --surface: #111118; --surface2: #1a1a24; --border: #2a2a3a;
-    --accent: #00ff88; --accent2: #7c3aed; --accent3: #f59e0b; --red: #ff4444;
-    --speaker1: #00d4ff; --speaker2: #ff6b9d; --speaker3: #ffd93d; --speaker4: #6bcb77;
-    --text: #e8e8f0; --muted: #6b6b80;
-    --mono: "JetBrains Mono", monospace; --sans: "Syne", sans-serif;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
-  body::before { content: ""; position: fixed; inset: 0; background-image: linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
-  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; position: relative; z-index: 1; }
-  header { display: flex; align-items: center; justify-content: space-between; padding: 2rem 0 3rem; border-bottom: 1px solid var(--border); margin-bottom: 2.5rem; }
-  .logo { display: flex; align-items: center; gap: 1rem; }
-  .logo-icon { width: 48px; height: 48px; background: var(--accent); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; box-shadow: 0 0 24px rgba(0,255,136,0.4); }
-  h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
-  h1 span { color: var(--accent); }
-  .version-badge { font-family: var(--mono); font-size: 0.7rem; background: var(--surface2); border: 1px solid var(--border); padding: 0.3rem 0.8rem; border-radius: 100px; color: var(--muted); }
-  .status-bar { display: flex; align-items: center; gap: 0.5rem; font-family: var(--mono); font-size: 0.75rem; }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: all 0.3s; }
-  .status-dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
-  .status-dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-  .config-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
-  .field { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 200px; }
-  label { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
-  input { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem 1rem; color: var(--text); font-family: var(--mono); font-size: 0.85rem; outline: none; transition: border-color 0.2s; }
-  input:focus { border-color: var(--accent); }
-  .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
-  .tab { padding: 0.6rem 1.2rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-family: var(--mono); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
-  .tab:hover { border-color: var(--accent); color: var(--text); }
-  .tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 700; }
-  .panel { display: none; }
-  .panel.active { display: block; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
-  .card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent2), var(--accent)); opacity: 0; transition: opacity 0.3s; }
-  .card:focus-within::before { opacity: 1; }
-  .card-title { font-size: 0.85rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1.2rem; display: flex; align-items: center; gap: 0.5rem; }
-  .btn { padding: 0.7rem 1.5rem; border-radius: 8px; border: none; font-family: var(--sans); font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; }
-  .btn-primary { background: var(--accent); color: var(--bg); box-shadow: 0 0 16px rgba(0,255,136,0.3); }
-  .btn-primary:hover { box-shadow: 0 0 24px rgba(0,255,136,0.5); transform: translateY(-1px); }
-  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-  .btn-danger { background: var(--red); color: white; box-shadow: 0 0 16px rgba(255,68,68,0.3); }
-  .btn-danger:hover { box-shadow: 0 0 24px rgba(255,68,68,0.5); transform: translateY(-1px); }
-  .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-  .btn-purple { background: var(--accent2); color: white; box-shadow: 0 0 16px rgba(124,58,237,0.3); }
-  .btn-purple:hover { box-shadow: 0 0 24px rgba(124,58,237,0.5); transform: translateY(-1px); }
-  .btn-purple:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-  .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
-  .response-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; font-family: var(--mono); font-size: 0.78rem; line-height: 1.7; color: var(--accent); white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; margin-top: 1rem; min-height: 60px; }
-  .response-box.error { color: var(--red); }
-  .response-box.muted { color: var(--muted); }
-  .record-center { display: flex; flex-direction: column; align-items: center; gap: 2rem; padding: 2rem 0; }
-  .record-btn { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--accent); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; transition: all 0.3s; }
-  .record-btn:hover { background: rgba(0,255,136,0.1); transform: scale(1.05); }
-  .record-btn.recording { border-color: var(--red); animation: recordPulse 1.5s infinite; }
-  @keyframes recordPulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,68,68,0.4)} 50%{box-shadow:0 0 0 20px rgba(255,68,68,0)} }
-  .record-status { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); text-align: center; }
-  .record-status.active { color: var(--red); }
-  .timer { font-family: var(--mono); font-size: 2.5rem; font-weight: 700; color: var(--text); letter-spacing: 0.1em; }
-  .timer.recording { color: var(--red); }
-
-  /* ── Transcript Tabs ── */
-  .transcript-tabs { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
-  .transcript-tab { padding: 0.35rem 0.9rem; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); font-family: var(--mono); font-size: 0.72rem; cursor: pointer; transition: all 0.2s; }
-  .transcript-tab:hover { border-color: var(--accent3); color: var(--text); }
-  .transcript-tab.active { background: rgba(124,58,237,0.2); border-color: var(--accent2); color: #a78bfa; font-weight: 700; }
-  .transcript-tab.diarized.active { background: rgba(0,212,255,0.1); border-color: var(--speaker1); color: var(--speaker1); }
-  .transcript-content { display: none; }
-  .transcript-content.active { display: block; }
-  .transcript-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; min-height: 150px; max-height: 300px; overflow-y: auto; font-family: var(--mono); font-size: 0.82rem; line-height: 1.8; color: var(--text); }
-  .chunk.new { color: var(--accent); animation: fadeToWhite 2s forwards; }
-  @keyframes fadeToWhite { 0%{color:var(--accent)} 100%{color:var(--text)} }
-
-  /* ── Speaker Lines in Diarized Transcript ── */
-  .speaker-line { display: block; margin-bottom: 0.6rem; line-height: 1.6; }
-  .speaker-label { font-weight: 700; border-radius: 4px; padding: 0.1rem 0.5rem; margin-right: 0.5rem; font-size: 0.75rem; display: inline-block; }
-  .speaker-label.s1 { background: rgba(0,212,255,0.15); color: var(--speaker1); border: 1px solid rgba(0,212,255,0.3); }
-  .speaker-label.s2 { background: rgba(255,107,157,0.15); color: var(--speaker2); border: 1px solid rgba(255,107,157,0.3); }
-  .speaker-label.s3 { background: rgba(255,217,61,0.15); color: var(--speaker3); border: 1px solid rgba(255,217,61,0.3); }
-  .speaker-label.s4 { background: rgba(107,203,119,0.15); color: var(--speaker4); border: 1px solid rgba(107,203,119,0.3); }
-  .speaker-text { color: var(--text); }
-
-  /* ── Diarization Stats Card ── */
-  .diarization-banner { background: linear-gradient(135deg, rgba(0,212,255,0.08), rgba(124,58,237,0.08)); border: 1px solid rgba(0,212,255,0.25); border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 1rem; display: none; }
-  .diarization-banner.visible { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-  .diarization-banner .banner-title { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--speaker1); }
-  .speaker-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.4rem; }
-  .speaker-pill { padding: 0.2rem 0.7rem; border-radius: 100px; font-family: var(--mono); font-size: 0.72rem; font-weight: 700; }
-  .speaker-pill.s1 { background: rgba(0,212,255,0.15); color: var(--speaker1); }
-  .speaker-pill.s2 { background: rgba(255,107,157,0.15); color: var(--speaker2); }
-  .speaker-pill.s3 { background: rgba(255,217,61,0.15); color: var(--speaker3); }
-  .speaker-pill.s4 { background: rgba(107,203,119,0.15); color: var(--speaker4); }
-
-  .stats-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
-  .stat-card { flex: 1; min-width: 120px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; text-align: center; }
-  .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--accent); font-family: var(--mono); display: block; }
-  .stat-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-family: var(--mono); }
-  .meeting-id-display { background: var(--surface2); border: 1px solid var(--accent); border-radius: 8px; padding: 0.75rem 1rem; font-family: var(--mono); font-size: 0.8rem; color: var(--accent); display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 0.5rem; }
-  .copy-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; transition: color 0.2s; }
-  .copy-btn:hover { color: var(--accent); }
-  .log-entry { display: flex; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-family: var(--mono); font-size: 0.75rem; align-items: flex-start; }
-  .log-time { color: var(--muted); flex-shrink: 0; }
-  .log-msg { color: var(--text); flex: 1; }
-  .log-msg.success { color: var(--accent); }
-  .log-msg.error { color: var(--red); }
-  .log-msg.info { color: var(--accent3); }
-  .log-msg.diarize { color: var(--speaker1); }
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: var(--surface); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-  .action-item { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; font-size: 0.85rem; }
-  .action-item .task { font-weight: 600; color: var(--text); }
-  .action-item .meta { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; }
-  .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-family: var(--mono); font-size: 0.68rem; margin-right: 0.4rem; }
-  .tag-person { background: rgba(124,58,237,0.2); color: #a78bfa; }
-  .tag-deadline { background: rgba(245,158,11,0.2); color: var(--accent3); }
-  .history-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1rem; transition: border-color 0.2s; }
-  .history-card:hover { border-color: rgba(0,255,136,0.3); }
-  .history-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
-  .history-title { font-weight: 700; font-size: 1rem; margin-bottom: 0.25rem; }
-  .history-date { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
-  .badge { font-family: var(--mono); font-size: 0.72rem; padding: 0.2rem 0.6rem; border-radius: 4px; white-space: nowrap; }
-  .badge-completed { background: rgba(0,255,136,0.1); color: var(--accent); }
-  .badge-recording { background: rgba(245,158,11,0.1); color: var(--accent3); }
-  .badge-speakers { background: rgba(0,212,255,0.12); color: var(--speaker1); border: 1px solid rgba(0,212,255,0.25); }
-  .history-summary { font-size: 0.83rem; color: var(--muted); line-height: 1.6; margin-bottom: 1rem; }
-  .history-id { font-family: var(--mono); font-size: 0.68rem; color: var(--border); margin-top: 0.5rem; }
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 2rem; backdrop-filter: blur(6px); }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 860px; max-height: 90vh; overflow-y: auto; padding: 2rem; position: relative; }
-  .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; gap: 1rem; }
-  .modal-title { font-size: 1.4rem; font-weight: 800; flex: 1; }
-  .modal-close { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); cursor: pointer; padding: 0.4rem 0.9rem; font-family: var(--mono); font-size: 0.8rem; white-space: nowrap; transition: all 0.2s; }
-  .modal-close:hover { border-color: var(--red); color: var(--red); }
-  .modal-meta { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.8; }
-  .section-title { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 1.5rem 0 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
-  .section-title::after { content: ""; flex: 1; height: 1px; background: var(--border); }
-  .summary-text { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent2); border-radius: 10px; padding: 1.2rem; font-size: 0.88rem; line-height: 1.8; color: var(--text); }
-  .transcript-text { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; font-family: var(--mono); font-size: 0.78rem; line-height: 1.8; color: var(--muted); max-height: 280px; overflow-y: auto; }
-  .diarized-text { background: var(--bg); border: 1px solid rgba(0,212,255,0.2); border-radius: 10px; padding: 1.2rem; font-family: var(--mono); font-size: 0.78rem; line-height: 2; max-height: 280px; overflow-y: auto; }
-  .delete-zone { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
-  .delete-confirm-box { background: rgba(255,68,68,0.08); border: 1px solid rgba(255,68,68,0.3); border-radius: 10px; padding: 1rem 1.2rem; margin-top: 0.75rem; display: none; }
-  .delete-confirm-box p { font-size: 0.84rem; color: var(--red); margin-bottom: 0.75rem; }
-
-  /* ── Edit Zone ── */
-  .edit-zone { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
-  .edit-zone-title { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent3); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
-  .edit-form { background: rgba(245,158,11,0.04); border: 1px solid rgba(245,158,11,0.2); border-radius: 12px; padding: 1.2rem; display: none; margin-top: 0.75rem; }
-  .edit-form.open { display: block; }
-  .edit-field { margin-bottom: 1rem; }
-  .edit-field label { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 0.4rem; }
-  .edit-field input, .edit-field textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem 1rem; color: var(--text); font-family: var(--mono); font-size: 0.82rem; outline: none; transition: border-color 0.2s; resize: vertical; }
-  .edit-field input:focus, .edit-field textarea:focus { border-color: var(--accent3); }
-  .edit-field textarea { min-height: 120px; line-height: 1.6; }
-  .reanalyze-toggle { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; cursor: pointer; }
-  .reanalyze-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent2); cursor: pointer; }
-  .reanalyze-toggle span { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
-  .reanalyze-toggle span strong { color: #a78bfa; }
-  .edit-result-box { background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 8px; padding: 0.75rem 1rem; font-family: var(--mono); font-size: 0.76rem; color: var(--accent); margin-top: 0.75rem; display: none; line-height: 1.7; }
-  .rec-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 0.75rem; }
-  .rec-card.priority-high { border-left: 4px solid var(--red); }
-  .rec-card.priority-medium { border-left: 4px solid var(--accent3); }
-  .rec-card.priority-low { border-left: 4px solid var(--accent); }
-  .rec-title { font-weight: 700; font-size: 0.9rem; color: var(--text); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem; }
-  .rec-detail { font-size: 0.83rem; color: var(--muted); line-height: 1.7; }
-  .priority-tag { font-family: var(--mono); font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 4px; }
-  .priority-tag.high { background: rgba(255,68,68,0.15); color: var(--red); }
-  .priority-tag.medium { background: rgba(245,158,11,0.15); color: var(--accent3); }
-  .priority-tag.low { background: rgba(0,255,136,0.15); color: var(--accent); }
-
-  /* Audio Mode Selector */
-  .audio-mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
-  .audio-mode-btn { background: var(--surface2); border: 2px solid var(--border); border-radius: 12px; padding: 1rem; cursor: pointer; transition: all 0.2s; text-align: center; }
-  .audio-mode-btn:hover { border-color: var(--accent); }
-  .audio-mode-btn.selected { border-color: var(--accent); background: rgba(0,255,136,0.08); }
-  .audio-mode-btn.selected .mode-icon { color: var(--accent); }
-  .mode-icon { font-size: 1.8rem; display: block; margin-bottom: 0.4rem; }
-  .mode-label { font-weight: 700; font-size: 0.82rem; display: block; margin-bottom: 0.2rem; }
-  .mode-desc { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); line-height: 1.4; }
-  .audio-mode-btn.selected .mode-label { color: var(--accent); }
-  .info-box { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; padding: 0.75rem 1rem; font-family: var(--mono); font-size: 0.75rem; color: var(--accent3); line-height: 1.6; margin-bottom: 1rem; display: none; }
-  .diarize-info-box { background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.2); border-radius: 10px; padding: 0.75rem 1rem; font-family: var(--mono); font-size: 0.74rem; color: var(--speaker1); line-height: 1.7; margin-bottom: 1.2rem; }
-</style>
-</head>
-<body>
-<div class="container">
-  <header>
-    <div class="logo">
-      <div class="logo-icon">🎙</div>
-      <div>
-        <h1>Meeting <span>AI</span> Tester</h1>
-        <div style="font-family:var(--mono);font-size:0.72rem;color:var(--muted);margin-top:2px">Backend Integration Test + Speaker Diarization</div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:1rem">
-      <span class="version-badge">v4.1.0 — Groq + Diarization + Edit</span>
-      <div class="status-bar">
-        <div class="status-dot" id="statusDot"></div>
-        <span id="statusText" style="color:var(--muted)">Offline</span>
-      </div>
-    </div>
-  </header>
-
-  <div class="config-panel">
-    <div class="field">
-      <label>🔌 Backend URL</label>
-      <input type="text" id="backendUrl" value="http://localhost:8000">
-    </div>
-    <div class="field" style="max-width:320px">
-      <label>👤 User ID</label>
-      <input type="text" id="userId" value="00000000-0000-0000-0000-000000000001">
-    </div>
-    <div class="field" style="max-width:280px">
-      <label>🔑 API Key</label>
-      <input type="text" id="apiKey" value="vcols-api-key-2024" placeholder="Masukkan API Key">
-    </div>
-    <button class="btn btn-secondary" onclick="checkHealth()">⚡ Check Health</button>
-  </div>
-
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('health',this)">⚡ Health</button>
-    <button class="tab" onclick="switchTab('record',this)">🎙 Record</button>
-    <button class="tab" onclick="switchTab('history',this)">📋 History</button>
-    <button class="tab" onclick="switchTab('logs',this)">📟 Logs</button>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════ HEALTH ══ -->
-  <div class="panel active" id="tab-health">
-    <div class="card">
-      <div class="card-title">⚡ Health Check</div>
-      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem">Cek status semua service backend termasuk Diarization.</p>
-      <button class="btn btn-primary" onclick="checkHealth()">Run Health Check</button>
-      <div class="response-box muted" id="healthResponse">// Klik "Run Health Check" untuk mulai...</div>
-    </div>
-    <div class="stats-row" id="statsRow" style="display:none">
-      <div class="stat-card"><span class="stat-value" id="statWhisper">—</span><span class="stat-label">Whisper (Groq)</span></div>
-      <div class="stat-card"><span class="stat-value" id="statAI">—</span><span class="stat-label">AI (LLM)</span></div>
-      <div class="stat-card"><span class="stat-value" id="statSupabase">—</span><span class="stat-label">Supabase</span></div>
-      <div class="stat-card" style="border-color:rgba(0,212,255,0.3)"><span class="stat-value" style="color:var(--speaker1)" id="statDiarize">✅</span><span class="stat-label">Diarization</span></div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════ RECORD ══ -->
-  <div class="panel" id="tab-record">
-    <div class="card">
-      <div class="card-title">① Buat Sesi Rapat</div>
-      <div class="field">
-        <label>Judul Rapat</label>
-        <input type="text" id="meetingTitle" value="Test Rapat — Backend AI" style="margin-top:0.4rem">
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" id="createBtn" onclick="createMeeting()">🚀 Buat Meeting</button>
-      </div>
-      <div id="meetingIdDisplay" style="display:none;margin-top:1rem">
-        <label>Meeting ID:</label>
-        <div class="meeting-id-display">
-          <span id="meetingIdText">—</span>
-          <button class="copy-btn" onclick="copyMeetingId()">📋</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" id="step2Card" style="opacity:0.4;pointer-events:none">
-      <div class="card-title">② Pilih Sumber Audio &amp; Rekam</div>
-
-      <!-- Diarization info -->
-      <div class="diarize-info-box">
-        👥 <strong>Speaker Diarization aktif</strong> — backend otomatis mendeteksi siapa berbicara berdasarkan jeda suara. Hasil muncul di tab "<strong>Berlabel Speaker</strong>" setelah rekam selesai.
-      </div>
-
-      <!-- Audio Mode Selector -->
-      <label style="display:block;margin-bottom:0.75rem">Sumber Audio:</label>
-      <div class="audio-mode-grid">
-        <div class="audio-mode-btn selected" id="mode-mic" onclick="selectMode('mic')">
-          <span class="mode-icon">🎤</span>
-          <span class="mode-label">Mic Only</span>
-          <span class="mode-desc">Rekam suara dari mikrofon perangkat</span>
-        </div>
-        <div class="audio-mode-btn" id="mode-screen" onclick="selectMode('screen')">
-          <span class="mode-icon">🖥️</span>
-          <span class="mode-label">Meeting Audio</span>
-          <span class="mode-desc">Rekam audio dari tab/window (GMeet, Zoom, dll)</span>
-        </div>
-        <div class="audio-mode-btn" id="mode-both" onclick="selectMode('both')">
-          <span class="mode-icon">🎙️+🖥️</span>
-          <span class="mode-label">Mic + Meeting</span>
-          <span class="mode-desc">Gabung mikrofon &amp; audio internal sekaligus</span>
-        </div>
-      </div>
-
-      <div class="info-box" id="infoScreen">
-        💡 Saat klik rekam, browser akan minta pilih Tab/Window. Pilih tab <strong>Google Meet / Zoom</strong> dan centang <strong>"Share tab audio"</strong>.
-      </div>
-      <div class="info-box" id="infoBoth">
-        💡 Browser akan minta akses mikrofon DAN pilih tab/window. Keduanya akan digabung menjadi satu stream audio.
-      </div>
-
-      <div class="record-center">
-        <div class="timer" id="timer">00:00</div>
-        <button class="record-btn" id="recordBtn" onclick="toggleRecording()">🎙</button>
-        <div class="record-status" id="recordStatus">Klik untuk mulai rekam</div>
-      </div>
-
-      <!-- Transcript dengan 2 tabs: Plain & Diarized -->
-      <div class="transcript-tabs">
-        <button class="transcript-tab active" id="tabPlain" onclick="switchTranscriptTab('plain')">📝 Transkrip Biasa</button>
-        <button class="transcript-tab diarized" id="tabDiarized" onclick="switchTranscriptTab('diarized')">👥 Berlabel Speaker</button>
-      </div>
-      <div class="transcript-content active" id="contentPlain">
-        <div class="transcript-box" id="transcriptBox"><span style="color:var(--muted)">Transkrip muncul setelah stop rekam...</span></div>
-      </div>
-      <div class="transcript-content" id="contentDiarized">
-        <div class="transcript-box" id="diarizedBox" style="border-color:rgba(0,212,255,0.2)"><span style="color:var(--muted)">Transkrip berlabel speaker muncul setelah rekam selesai...</span></div>
-      </div>
-    </div>
-
-    <!-- Step 3 — Diarization result banner + Analyze -->
-    <div class="card" id="step3Card" style="opacity:0.4;pointer-events:none">
-      <div class="card-title">③ Hasil Diarization + Analisis AI</div>
-
-      <!-- Diarization result banner -->
-      <div class="diarization-banner" id="diarizationBanner">
-        <div>
-          <div class="banner-title">👥 Speaker Terdeteksi</div>
-          <div class="speaker-pills" id="speakerPills"></div>
-        </div>
-      </div>
-
-      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem">Kirim transkrip + diarization ke AI untuk ringkasan, action items, dan rekomendasi strategis.</p>
-      <div class="btn-row">
-        <button class="btn btn-danger" id="stopBtn" onclick="stopRecording()" disabled>⏹ Stop Recording</button>
-        <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeMeeting()" disabled>🧠 Analisis AI</button>
-      </div>
-      <div class="response-box muted" id="analysisResponse">// Hasil analisis AI akan muncul di sini...</div>
-    </div>
-
-    <div class="card" id="actionItemsCard" style="display:none">
-      <div class="card-title">✅ Action Items</div>
-      <div id="actionItemsList"></div>
-    </div>
-    <div class="card" id="recommendationsCard" style="display:none">
-      <div class="card-title">💡 Rekomendasi AI</div>
-      <div id="recommendationsList"></div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════ HISTORY ══ -->
-  <div class="panel" id="tab-history">
-    <div class="card">
-      <div class="card-title" style="justify-content:space-between">
-        <span>📋 Riwayat Rapat</span>
-        <span id="historyCount" style="font-family:var(--mono);font-size:0.75rem;color:var(--muted)"></span>
-      </div>
-      <button class="btn btn-primary" onclick="loadHistory()">🔄 Load History</button>
-    </div>
-    <div id="historyList"></div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════ LOGS ══ -->
-  <div class="panel" id="tab-logs">
-    <div class="card">
-      <div class="card-title" style="justify-content:space-between">
-        <span>📟 Activity Logs</span>
-        <button class="btn btn-secondary" onclick="clearLogs()" style="padding:0.3rem 0.8rem;font-size:0.75rem">Clear</button>
-      </div>
-      <div class="response-box" id="logsBox" style="color:var(--text);max-height:500px">
-        <div class="log-entry"><span class="log-time">[init]</span><span class="log-msg info">Meeting AI Tester v4.1 siap (Groq Whisper + Diarization + Edit).</span></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════ MODAL ══ -->
-<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="onOverlayClick(event)">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="modalTitle">Loading...</div>
-      <button class="modal-close" onclick="closeModal()">✕ Tutup</button>
-    </div>
-    <div class="modal-meta" id="modalMeta"></div>
-
-    <!-- Speaker info if diarized -->
-    <div id="modalDiarizationBanner" style="display:none;margin-bottom:1rem">
-      <div style="background:linear-gradient(135deg,rgba(0,212,255,0.08),rgba(124,58,237,0.08));border:1px solid rgba(0,212,255,0.2);border-radius:10px;padding:0.9rem 1.2rem">
-        <div style="font-family:var(--mono);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--speaker1);margin-bottom:0.5rem">👥 Diarization Result</div>
-        <div id="modalSpeakerPills" class="speaker-pills"></div>
-      </div>
-    </div>
-
-    <div class="section-title">🧠 Summary AI</div>
-    <div class="summary-text" id="modalSummary">—</div>
-
-    <div class="section-title">💡 Rekomendasi AI</div>
-    <div id="modalRecommendations">—</div>
-
-    <div class="section-title">✅ Action Items</div>
-    <div id="modalActionItems">—</div>
-
-    <!-- Transcript tabs in modal -->
-    <div id="modalTranscriptSection">
-      <div class="section-title">📝 Transkrip</div>
-      <div class="transcript-tabs" id="modalTranscriptTabs">
-        <button class="transcript-tab active" id="modalTabPlain" onclick="switchModalTab('plain')">Biasa</button>
-        <button class="transcript-tab diarized" id="modalTabDiarized" onclick="switchModalTab('diarized')" style="display:none">👥 Berlabel Speaker</button>
-      </div>
-      <div class="transcript-content active" id="modalContentPlain">
-        <div class="transcript-text" id="modalTranscript">—</div>
-      </div>
-      <div class="transcript-content" id="modalContentDiarized">
-        <div class="diarized-text" id="modalDiarizedTranscript">—</div>
-      </div>
-    </div>
-
-    <!-- Edit Zone -->
-    <div class="edit-zone">
-      <div class="edit-zone-title">✏️ Edit Rapat</div>
-      <button class="btn btn-secondary" onclick="toggleEditForm()" id="editToggleBtn" style="font-size:0.8rem;padding:0.5rem 1.2rem">✏️ Edit Judul / Transkrip</button>
-      <div class="edit-form" id="editForm">
-        <div class="edit-field">
-          <label>Judul Rapat</label>
-          <input type="text" id="editTitle" placeholder="Kosongkan jika tidak ingin mengubah judul">
-        </div>
-        <div class="edit-field">
-          <label>Transkrip (koreksi manual)</label>
-          <textarea id="editTranscript" placeholder="Kosongkan jika tidak ingin mengubah transkrip..."></textarea>
-        </div>
-        <label class="reanalyze-toggle">
-          <input type="checkbox" id="editReanalyze">
-          <span>Re-generate <strong>AI Analysis</strong> setelah edit (summary + action items + rekomendasi)</span>
-        </label>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="doEdit()" id="editSaveBtn" style="font-size:0.82rem;padding:0.55rem 1.2rem">💾 Simpan Perubahan</button>
-          <button class="btn btn-secondary" onclick="toggleEditForm()" style="font-size:0.82rem;padding:0.55rem 1.2rem">Batal</button>
-        </div>
-        <div class="edit-result-box" id="editResultBox"></div>
-      </div>
-    </div>
-
-    <!-- Delete Zone -->
-    <div class="delete-zone">
-      <button class="btn btn-danger" onclick="showDeleteConfirm()" style="font-size:0.8rem;padding:0.5rem 1.2rem">🗑 Hapus Rapat Ini</button>
-      <div class="delete-confirm-box" id="deleteConfirmBox">
-        <p>⚠️ Yakin ingin menghapus rapat ini? Tindakan ini tidak bisa dibatalkan.</p>
-        <div style="display:flex;gap:0.5rem">
-          <button class="btn btn-danger" onclick="doDelete()" style="font-size:0.8rem;padding:0.5rem 1rem">Ya, Hapus</button>
-          <button class="btn btn-secondary" onclick="hideDeleteConfirm()" style="font-size:0.8rem;padding:0.5rem 1rem">Batal</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-  let currentMeetingId = null, ws = null, mediaRecorder = null;
-  let isRecording = false, timerInterval = null, timerSeconds = 0;
-  let fullTranscript = '', diarizedTranscript = '', speakersDetected = 0;
-  let currentDetailId = null;
-  let audioMode = 'mic'; // mic | screen | both
-
-  const getUrl     = () => document.getElementById('backendUrl').value.replace(/\/$/, '');
-  const getUserId  = () => document.getElementById('userId').value;
-  const getApiKey  = () => document.getElementById('apiKey').value;
-  const authHeaders = () => ({ 'Content-Type': 'application/json', 'X-API-Key': getApiKey() });
-
-  // Speaker color classes (cycle if >4)
-  const SPEAKER_CLASSES = ['s1','s2','s3','s4'];
-  function speakerClass(label) {
-    const num = parseInt((label || '').replace(/\D/g,'')) || 1;
-    return SPEAKER_CLASSES[(num - 1) % SPEAKER_CLASSES.length];
-  }
-
-  // ── Audio Mode ────────────────────────────────────────────
-  function selectMode(mode) {
-    audioMode = mode;
-    ['mic','screen','both'].forEach(m => {
-      document.getElementById('mode-' + m).classList.toggle('selected', m === mode);
-    });
-    document.getElementById('infoScreen').style.display = mode === 'screen' ? 'block' : 'none';
-    document.getElementById('infoBoth').style.display   = mode === 'both'   ? 'block' : 'none';
-    const icons = { mic:'🎙', screen:'🖥️', both:'🎙️+🖥️' };
-    document.getElementById('recordBtn').textContent = icons[mode];
-    log('Mode audio: ' + mode, 'info');
-  }
-
-  async function getAudioStream() {
-    if (audioMode === 'mic') return await navigator.mediaDevices.getUserMedia({ audio: true });
-
-    if (audioMode === 'screen') {
-      const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: { echoCancellation: false, noiseSuppression: false } });
-      display.getVideoTracks().forEach(t => t.stop());
-      const audioTracks = display.getAudioTracks();
-      if (!audioTracks.length) throw new Error('Tidak ada audio dari tab/window. Centang "Share tab audio".');
-      return new MediaStream(audioTracks);
-    }
-
-    if (audioMode === 'both') {
-      const [micStream, displayStream] = await Promise.all([
-        navigator.mediaDevices.getUserMedia({ audio: true }),
-        navigator.mediaDevices.getDisplayMedia({ video: true, audio: { echoCancellation: false, noiseSuppression: false } })
-      ]);
-      displayStream.getVideoTracks().forEach(t => t.stop());
-      const ctx  = new AudioContext();
-      const dest = ctx.createMediaStreamDestination();
-      ctx.createMediaStreamSource(micStream).connect(dest);
-      if (displayStream.getAudioTracks().length) ctx.createMediaStreamSource(displayStream).connect(dest);
-      return dest.stream;
-    }
-  }
-
-  // ── Helpers ───────────────────────────────────────────────
-  function log(msg, type = 'default') {
-    const box = document.getElementById('logsBox');
-    const now = new Date().toTimeString().split(' ')[0];
-    const d = document.createElement('div');
-    d.className = 'log-entry';
-    d.innerHTML = `<span class="log-time">[${now}]</span><span class="log-msg ${type}">${msg}</span>`;
-    box.appendChild(d); box.scrollTop = box.scrollHeight;
-  }
-
-  function setStatus(state, text) {
-    const dot = document.getElementById('statusDot'), txt = document.getElementById('statusText');
-    dot.className = 'status-dot ' + (state === 'online' ? 'online' : state === 'error' ? 'error' : '');
-    txt.textContent = text;
-    txt.style.color = state === 'online' ? 'var(--accent)' : state === 'error' ? 'var(--red)' : 'var(--muted)';
-  }
-
-  function switchTab(name, el) {
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
-    el.classList.add('active');
-  }
-
-  function switchTranscriptTab(tab) {
-    document.querySelectorAll('.transcript-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.transcript-content').forEach(c => c.classList.remove('active'));
-    document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
-    document.getElementById('content' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
-  }
-
-  function switchModalTab(tab) {
-    document.querySelectorAll('#modalTranscriptTabs .transcript-tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('modalTabPlain').closest('.transcript-tabs').querySelectorAll('.transcript-content, [id^="modalContent"]').forEach(c => c.classList.remove('active'));
-    document.getElementById('modalTab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
-    document.getElementById('modalContent' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
-  }
-
-  const clearLogs     = () => document.getElementById('logsBox').innerHTML = '';
-  const copyMeetingId = () => { navigator.clipboard.writeText(currentMeetingId); log('Meeting ID disalin', 'info'); };
-  const formatTime    = s => String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
-
-  // ── Render diarized transcript (colorized) ────────────────
-  function renderDiarizedTranscript(text, targetEl) {
-    if (!text || !text.trim()) {
-      targetEl.innerHTML = '<span style="color:var(--muted)">Tidak ada data diarization.</span>';
-      return;
-    }
-    const lines = text.split('\n').filter(l => l.trim());
-    targetEl.innerHTML = lines.map(line => {
-      const match = line.match(/^\[(.+?)\]:\s*(.*)$/);
-      if (match) {
-        const label = match[1], content = match[2];
-        const cls = speakerClass(label);
-        return `<span class="speaker-line"><span class="speaker-label ${cls}">${label}</span><span class="speaker-text">${content}</span></span>`;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Meeting AI — Backend Tester</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0a0f;
+        --surface: #111118;
+        --surface2: #1a1a24;
+        --border: #2a2a3a;
+        --accent: #00ff88;
+        --accent2: #7c3aed;
+        --accent3: #f59e0b;
+        --red: #ff4444;
+        --speaker1: #00d4ff;
+        --speaker2: #ff6b9d;
+        --speaker3: #ffd93d;
+        --speaker4: #6bcb77;
+        --text: #e8e8f0;
+        --muted: #6b6b80;
+        --mono: "JetBrains Mono", monospace;
+        --sans: "Syne", sans-serif;
       }
-      return `<span class="speaker-line" style="color:var(--muted)">${line}</span>`;
-    }).join('');
-  }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 2rem;
+        position: relative;
+        z-index: 1;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 2rem 0 3rem;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 2.5rem;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+      .logo-icon {
+        width: 48px;
+        height: 48px;
+        background: var(--accent);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        box-shadow: 0 0 24px rgba(0, 255, 136, 0.4);
+      }
+      h1 {
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      h1 span {
+        color: var(--accent);
+      }
+      .version-badge {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        padding: 0.3rem 0.8rem;
+        border-radius: 100px;
+        color: var(--muted);
+      }
+      .status-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+        transition: all 0.3s;
+      }
+      .status-dot.online {
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        animation: pulse 2s infinite;
+      }
+      .status-dot.error {
+        background: var(--red);
+        box-shadow: 0 0 8px var(--red);
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      .config-panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        display: flex;
+        gap: 1rem;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        flex: 1;
+        min-width: 200px;
+      }
+      label {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      input {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.65rem 1rem;
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 0.85rem;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      input:focus {
+        border-color: var(--accent);
+      }
+      .tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+      }
+      .tab {
+        padding: 0.6rem 1.2rem;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .tab:hover {
+        border-color: var(--accent);
+        color: var(--text);
+      }
+      .tab.active {
+        background: var(--accent);
+        color: var(--bg);
+        border-color: var(--accent);
+        font-weight: 700;
+      }
+      .panel {
+        display: none;
+      }
+      .panel.active {
+        display: block;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
+      }
+      .card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent2), var(--accent));
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .card:focus-within::before {
+        opacity: 1;
+      }
+      .card-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .btn {
+        padding: 0.7rem 1.5rem;
+        border-radius: 8px;
+        border: none;
+        font-family: var(--sans);
+        font-weight: 700;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: var(--bg);
+        box-shadow: 0 0 16px rgba(0, 255, 136, 0.3);
+      }
+      .btn-primary:hover {
+        box-shadow: 0 0 24px rgba(0, 255, 136, 0.5);
+        transform: translateY(-1px);
+      }
+      .btn-primary:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn-danger {
+        background: var(--red);
+        color: white;
+        box-shadow: 0 0 16px rgba(255, 68, 68, 0.3);
+      }
+      .btn-danger:hover {
+        box-shadow: 0 0 24px rgba(255, 68, 68, 0.5);
+        transform: translateY(-1px);
+      }
+      .btn-danger:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn-secondary {
+        background: var(--surface2);
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      .btn-secondary:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .btn-purple {
+        background: var(--accent2);
+        color: white;
+        box-shadow: 0 0 16px rgba(124, 58, 237, 0.3);
+      }
+      .btn-purple:hover {
+        box-shadow: 0 0 24px rgba(124, 58, 237, 0.5);
+        transform: translateY(-1px);
+      }
+      .btn-purple:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn-row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+      }
+      .response-box {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        line-height: 1.7;
+        color: var(--accent);
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 1rem;
+        min-height: 60px;
+      }
+      .response-box.error {
+        color: var(--red);
+      }
+      .response-box.muted {
+        color: var(--muted);
+      }
+      .record-center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2rem;
+        padding: 2rem 0;
+      }
+      .record-btn {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        border: 3px solid var(--accent);
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        transition: all 0.3s;
+      }
+      .record-btn:hover {
+        background: rgba(0, 255, 136, 0.1);
+        transform: scale(1.05);
+      }
+      .record-btn.recording {
+        border-color: var(--red);
+        animation: recordPulse 1.5s infinite;
+      }
+      @keyframes recordPulse {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 0 20px rgba(255, 68, 68, 0);
+        }
+      }
+      .record-status {
+        font-family: var(--mono);
+        font-size: 0.85rem;
+        color: var(--muted);
+        text-align: center;
+      }
+      .record-status.active {
+        color: var(--red);
+      }
+      .timer {
+        font-family: var(--mono);
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: 0.1em;
+      }
+      .timer.recording {
+        color: var(--red);
+      }
 
-  // ── Show diarization result banner ────────────────────────
-  function showDiarizationBanner(count, targetPillsEl, bannerEl) {
-    if (count <= 0) return;
-    bannerEl.classList.add('visible');
-    const pills = [];
-    for (let i = 1; i <= count; i++) {
-      const cls = speakerClass('Speaker ' + i);
-      pills.push(`<span class="speaker-pill ${cls}">👤 Speaker ${i}</span>`);
-    }
-    targetPillsEl.innerHTML = pills.join('');
-  }
+      /* ── Transcript Tabs ── */
+      .transcript-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+      }
+      .transcript-tab {
+        padding: 0.35rem 0.9rem;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .transcript-tab:hover {
+        border-color: var(--accent3);
+        color: var(--text);
+      }
+      .transcript-tab.active {
+        background: rgba(124, 58, 237, 0.2);
+        border-color: var(--accent2);
+        color: #a78bfa;
+        font-weight: 700;
+      }
+      .transcript-tab.diarized.active {
+        background: rgba(0, 212, 255, 0.1);
+        border-color: var(--speaker1);
+        color: var(--speaker1);
+      }
+      .transcript-content {
+        display: none;
+      }
+      .transcript-content.active {
+        display: block;
+      }
+      .transcript-box {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.2rem;
+        min-height: 150px;
+        max-height: 300px;
+        overflow-y: auto;
+        font-family: var(--mono);
+        font-size: 0.82rem;
+        line-height: 1.8;
+        color: var(--text);
+      }
+      .chunk.new {
+        color: var(--accent);
+        animation: fadeToWhite 2s forwards;
+      }
+      @keyframes fadeToWhite {
+        0% {
+          color: var(--accent);
+        }
+        100% {
+          color: var(--text);
+        }
+      }
 
-  // ── Health ────────────────────────────────────────────────
-  async function checkHealth() {
-    const box = document.getElementById('healthResponse');
-    box.className = 'response-box muted'; box.textContent = '// Checking...';
-    try {
-      const res  = await fetch(getUrl() + '/health');
-      const data = await res.json();
-      box.className  = 'response-box';
-      box.textContent = JSON.stringify(data, null, 2);
-      document.getElementById('statsRow').style.display = 'flex';
-      document.getElementById('statWhisper').textContent  = data.services?.whisper === 'groq_api' ? '✅' : '❌';
-      document.getElementById('statAI').textContent       = data.services?.ai === 'configured' ? '✅' : '❌';
-      document.getElementById('statSupabase').textContent = data.services?.supabase === 'configured' ? '✅' : '❌';
-      document.getElementById('statDiarize').textContent  = '✅';
-      setStatus('online', 'Online');
-      log('Health OK — Diarization: aktif', 'success');
-    } catch (e) {
-      box.className  = 'response-box error';
-      box.textContent = '// ERROR: ' + e.message;
-      setStatus('error', 'Offline');
-      log('Health gagal: ' + e.message, 'error');
-    }
-  }
+      /* ── Speaker Lines in Diarized Transcript ── */
+      .speaker-line {
+        display: block;
+        margin-bottom: 0.6rem;
+        line-height: 1.6;
+      }
+      .speaker-label {
+        font-weight: 700;
+        border-radius: 4px;
+        padding: 0.1rem 0.5rem;
+        margin-right: 0.5rem;
+        font-size: 0.75rem;
+        display: inline-block;
+      }
+      .speaker-label.s1 {
+        background: rgba(0, 212, 255, 0.15);
+        color: var(--speaker1);
+        border: 1px solid rgba(0, 212, 255, 0.3);
+      }
+      .speaker-label.s2 {
+        background: rgba(255, 107, 157, 0.15);
+        color: var(--speaker2);
+        border: 1px solid rgba(255, 107, 157, 0.3);
+      }
+      .speaker-label.s3 {
+        background: rgba(255, 217, 61, 0.15);
+        color: var(--speaker3);
+        border: 1px solid rgba(255, 217, 61, 0.3);
+      }
+      .speaker-label.s4 {
+        background: rgba(107, 203, 119, 0.15);
+        color: var(--speaker4);
+        border: 1px solid rgba(107, 203, 119, 0.3);
+      }
+      .speaker-text {
+        color: var(--text);
+      }
 
-  // ── Create Meeting ────────────────────────────────────────
-  async function createMeeting() {
-    const title = document.getElementById('meetingTitle').value;
-    if (!title) { alert('Isi judul rapat!'); return; }
-    document.getElementById('createBtn').disabled = true;
-    try {
-      const res  = await fetch(getUrl() + '/api/v1/meetings/', {
-        method: 'POST', headers: authHeaders(),
-        body: JSON.stringify({ title, user_id: getUserId() })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(JSON.stringify(data));
-      currentMeetingId = data.meeting_id;
-      document.getElementById('meetingIdText').textContent    = currentMeetingId;
-      document.getElementById('meetingIdDisplay').style.display = 'block';
-      document.getElementById('step2Card').style.cssText      = 'opacity:1;pointer-events:auto';
-      document.getElementById('step3Card').style.cssText      = 'opacity:1;pointer-events:auto';
-      document.getElementById('stopBtn').disabled             = false;
-      fullTranscript = ''; diarizedTranscript = ''; speakersDetected = 0;
-      log('Meeting dibuat: ' + currentMeetingId, 'success');
-    } catch (e) { log('Gagal buat meeting: ' + e.message, 'error'); alert('Error: ' + e.message); }
-    document.getElementById('createBtn').disabled = false;
-  }
+      /* ── Diarization Stats Card ── */
+      .diarization-banner {
+        background: linear-gradient(
+          135deg,
+          rgba(0, 212, 255, 0.08),
+          rgba(124, 58, 237, 0.08)
+        );
+        border: 1px solid rgba(0, 212, 255, 0.25);
+        border-radius: 12px;
+        padding: 1rem 1.2rem;
+        margin-bottom: 1rem;
+        display: none;
+      }
+      .diarization-banner.visible {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .diarization-banner .banner-title {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--speaker1);
+      }
+      .speaker-pills {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.4rem;
+      }
+      .speaker-pill {
+        padding: 0.2rem 0.7rem;
+        border-radius: 100px;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+      .speaker-pill.s1 {
+        background: rgba(0, 212, 255, 0.15);
+        color: var(--speaker1);
+      }
+      .speaker-pill.s2 {
+        background: rgba(255, 107, 157, 0.15);
+        color: var(--speaker2);
+      }
+      .speaker-pill.s3 {
+        background: rgba(255, 217, 61, 0.15);
+        color: var(--speaker3);
+      }
+      .speaker-pill.s4 {
+        background: rgba(107, 203, 119, 0.15);
+        color: var(--speaker4);
+      }
 
-  // ── Recording ─────────────────────────────────────────────
-  async function toggleRecording() {
-    if (!currentMeetingId) { alert('Buat meeting dulu!'); return; }
-    isRecording ? stopRecording() : startRecording();
-  }
+      .stats-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+      }
+      .stat-card {
+        flex: 1;
+        min-width: 120px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+      }
+      .stat-value {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: var(--accent);
+        font-family: var(--mono);
+        display: block;
+      }
+      .stat-label {
+        font-size: 0.7rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-family: var(--mono);
+      }
+      .meeting-id-display {
+        background: var(--surface2);
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 0.5rem;
+      }
+      .copy-btn {
+        background: none;
+        border: none;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 1rem;
+        transition: color 0.2s;
+      }
+      .copy-btn:hover {
+        color: var(--accent);
+      }
+      .log-entry {
+        display: flex;
+        gap: 0.75rem;
+        padding: 0.4rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        align-items: flex-start;
+      }
+      .log-time {
+        color: var(--muted);
+        flex-shrink: 0;
+      }
+      .log-msg {
+        color: var(--text);
+        flex: 1;
+      }
+      .log-msg.success {
+        color: var(--accent);
+      }
+      .log-msg.error {
+        color: var(--red);
+      }
+      .log-msg.info {
+        color: var(--accent3);
+      }
+      .log-msg.diarize {
+        color: var(--speaker1);
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--surface);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+      .action-item {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+      }
+      .action-item .task {
+        font-weight: 600;
+        color: var(--text);
+      }
+      .action-item .meta {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--muted);
+        margin-top: 0.3rem;
+      }
+      .tag {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        margin-right: 0.4rem;
+      }
+      .tag-person {
+        background: rgba(124, 58, 237, 0.2);
+        color: #a78bfa;
+      }
+      .tag-deadline {
+        background: rgba(245, 158, 11, 0.2);
+        color: var(--accent3);
+      }
+      .history-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: border-color 0.2s;
+      }
+      .history-card:hover {
+        border-color: rgba(0, 255, 136, 0.3);
+      }
+      .history-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+      }
+      .history-title {
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+      }
+      .history-date {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+      .badge {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        white-space: nowrap;
+      }
+      .badge-completed {
+        background: rgba(0, 255, 136, 0.1);
+        color: var(--accent);
+      }
+      .badge-recording {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--accent3);
+      }
+      .badge-speakers {
+        background: rgba(0, 212, 255, 0.12);
+        color: var(--speaker1);
+        border: 1px solid rgba(0, 212, 255, 0.25);
+      }
+      .history-summary {
+        font-size: 0.83rem;
+        color: var(--muted);
+        line-height: 1.6;
+        margin-bottom: 1rem;
+      }
+      .history-id {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        color: var(--border);
+        margin-top: 0.5rem;
+      }
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        backdrop-filter: blur(6px);
+      }
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 860px;
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 2rem;
+        position: relative;
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+        gap: 1rem;
+      }
+      .modal-title {
+        font-size: 1.4rem;
+        font-weight: 800;
+        flex: 1;
+      }
+      .modal-close {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--muted);
+        cursor: pointer;
+        padding: 0.4rem 0.9rem;
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        white-space: nowrap;
+        transition: all 0.2s;
+      }
+      .modal-close:hover {
+        border-color: var(--red);
+        color: var(--red);
+      }
+      .modal-meta {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--muted);
+        margin-bottom: 1.5rem;
+        line-height: 1.8;
+      }
+      .section-title {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+        margin: 1.5rem 0 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .section-title::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+      .summary-text {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent2);
+        border-radius: 10px;
+        padding: 1.2rem;
+        font-size: 0.88rem;
+        line-height: 1.8;
+        color: var(--text);
+      }
+      .transcript-text {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.2rem;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        line-height: 1.8;
+        color: var(--muted);
+        max-height: 280px;
+        overflow-y: auto;
+      }
+      .diarized-text {
+        background: var(--bg);
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        border-radius: 10px;
+        padding: 1.2rem;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        line-height: 2;
+        max-height: 280px;
+        overflow-y: auto;
+      }
+      .delete-zone {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border);
+      }
+      .delete-confirm-box {
+        background: rgba(255, 68, 68, 0.08);
+        border: 1px solid rgba(255, 68, 68, 0.3);
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        margin-top: 0.75rem;
+        display: none;
+      }
+      .delete-confirm-box p {
+        font-size: 0.84rem;
+        color: var(--red);
+        margin-bottom: 0.75rem;
+      }
 
-  async function startRecording() {
-    try {
-      log('Meminta akses audio mode: ' + audioMode + '...', 'info');
-      const stream = await getAudioStream();
-      const wsUrl  = getUrl().replace('http','ws') + '/api/v1/ws/transcribe/' + currentMeetingId + '?api_key=' + encodeURIComponent(getApiKey());
-      ws = new WebSocket(wsUrl);
-      ws.onopen = () => {
-        log('WebSocket connected ✓', 'success');
-        ws._ping = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({type:'ping'})), 30000);
+      /* ── Edit Zone ── */
+      .edit-zone {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border);
+      }
+      .edit-zone-title {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent3);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .edit-form {
+        background: rgba(245, 158, 11, 0.04);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+        border-radius: 12px;
+        padding: 1.2rem;
+        display: none;
+        margin-top: 0.75rem;
+      }
+      .edit-form.open {
+        display: block;
+      }
+      .edit-field {
+        margin-bottom: 1rem;
+      }
+      .edit-field label {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        display: block;
+        margin-bottom: 0.4rem;
+      }
+      .edit-field input,
+      .edit-field textarea {
+        width: 100%;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.65rem 1rem;
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 0.82rem;
+        outline: none;
+        transition: border-color 0.2s;
+        resize: vertical;
+      }
+      .edit-field input:focus,
+      .edit-field textarea:focus {
+        border-color: var(--accent3);
+      }
+      .edit-field textarea {
+        min-height: 120px;
+        line-height: 1.6;
+      }
+      .reanalyze-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-bottom: 1rem;
+        cursor: pointer;
+      }
+      .reanalyze-toggle input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--accent2);
+        cursor: pointer;
+      }
+      .reanalyze-toggle span {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .reanalyze-toggle span strong {
+        color: #a78bfa;
+      }
+      .edit-result-box {
+        background: rgba(0, 255, 136, 0.05);
+        border: 1px solid rgba(0, 255, 136, 0.2);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-family: var(--mono);
+        font-size: 0.76rem;
+        color: var(--accent);
+        margin-top: 0.75rem;
+        display: none;
+        line-height: 1.7;
+      }
+      .rec-card {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        margin-bottom: 0.75rem;
+      }
+      .rec-card.priority-high {
+        border-left: 4px solid var(--red);
+      }
+      .rec-card.priority-medium {
+        border-left: 4px solid var(--accent3);
+      }
+      .rec-card.priority-low {
+        border-left: 4px solid var(--accent);
+      }
+      .rec-title {
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: var(--text);
+        margin-bottom: 0.4rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .rec-detail {
+        font-size: 0.83rem;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+      .priority-tag {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+      }
+      .priority-tag.high {
+        background: rgba(255, 68, 68, 0.15);
+        color: var(--red);
+      }
+      .priority-tag.medium {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--accent3);
+      }
+      .priority-tag.low {
+        background: rgba(0, 255, 136, 0.15);
+        color: var(--accent);
+      }
+
+      /* Audio Mode Selector */
+      .audio-mode-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+      }
+      .audio-mode-btn {
+        background: var(--surface2);
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+      }
+      .audio-mode-btn:hover {
+        border-color: var(--accent);
+      }
+      .audio-mode-btn.selected {
+        border-color: var(--accent);
+        background: rgba(0, 255, 136, 0.08);
+      }
+      .audio-mode-btn.selected .mode-icon {
+        color: var(--accent);
+      }
+      .mode-icon {
+        font-size: 1.8rem;
+        display: block;
+        margin-bottom: 0.4rem;
+      }
+      .mode-label {
+        font-weight: 700;
+        font-size: 0.82rem;
+        display: block;
+        margin-bottom: 0.2rem;
+      }
+      .mode-desc {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+      .audio-mode-btn.selected .mode-label {
+        color: var(--accent);
+      }
+      .info-box {
+        background: rgba(245, 158, 11, 0.08);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--accent3);
+        line-height: 1.6;
+        margin-bottom: 1rem;
+        display: none;
+      }
+      .diarize-info-box {
+        background: rgba(0, 212, 255, 0.06);
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-family: var(--mono);
+        font-size: 0.74rem;
+        color: var(--speaker1);
+        line-height: 1.7;
+        margin-bottom: 1.2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="logo">
+          <div class="logo-icon">🎙</div>
+          <div>
+            <h1>Meeting <span>AI</span> Tester</h1>
+            <div
+              style="
+                font-family: var(--mono);
+                font-size: 0.72rem;
+                color: var(--muted);
+                margin-top: 2px;
+              "
+            >
+              Backend Integration Test + Speaker Diarization
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem">
+          <span class="version-badge">v4.1.0 — Groq + Diarization + Edit</span>
+          <div class="status-bar">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText" style="color: var(--muted)">Offline</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="config-panel">
+        <div class="field">
+          <label>🔌 Backend URL</label>
+          <input type="text" id="backendUrl" value="http://localhost:8000" />
+        </div>
+        <div class="field" style="max-width: 320px">
+          <label>👤 User ID</label>
+          <input
+            type="text"
+            id="userId"
+            value=""
+            placeholder="Terisi otomatis setelah login"
+          />
+        </div>
+        <div class="field" style="max-width: 280px">
+          <label>🔑 API Key</label>
+          <input
+            type="text"
+            id="apiKey"
+            value="vcols-key-12345"
+            placeholder="Masukkan API Key"
+          />
+        </div>
+        <button class="btn btn-secondary" onclick="checkHealth()">
+          ⚡ Check Health
+        </button>
+        <div class="field" style="max-width: 260px">
+          <label>🔐 Auth Session</label>
+          <input type="text" id="authState" value="Belum login" readonly />
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button
+          class="tab active"
+          id="tabButtonAuth"
+          data-tab="auth"
+          onclick="switchTab('auth', this)"
+        >
+          🔐 Auth
+        </button>
+        <button
+          class="tab"
+          id="tabButtonHealth"
+          data-tab="health"
+          onclick="switchTab('health', this)"
+        >
+          ⚡ Health
+        </button>
+        <button
+          class="tab"
+          id="tabButtonRecord"
+          data-tab="record"
+          onclick="switchTab('record', this)"
+        >
+          🎙 Record
+        </button>
+        <button
+          class="tab"
+          id="tabButtonHistory"
+          data-tab="history"
+          onclick="switchTab('history', this)"
+        >
+          📋 History
+        </button>
+        <button
+          class="tab"
+          id="tabButtonLogs"
+          data-tab="logs"
+          onclick="switchTab('logs', this)"
+        >
+          📟 Logs
+        </button>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════ AUTH ══ -->
+      <div class="panel active" id="tab-auth">
+        <div class="card">
+          <div class="card-title">🔐 Register & Login</div>
+          <p
+            style="color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem"
+          >
+            Wajib login terlebih dahulu sebelum menggunakan fitur Record,
+            History, Edit, dan Delete.
+          </p>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+              gap: 0.8rem;
+              margin-bottom: 1rem;
+            "
+          >
+            <div class="field">
+              <label>Email</label>
+              <input
+                type="email"
+                id="authEmail"
+                placeholder="nama@email.com"
+                autocomplete="email"
+              />
+            </div>
+            <div class="field">
+              <label>Password</label>
+              <input
+                type="password"
+                id="authPassword"
+                placeholder="Minimal 6 karakter"
+                autocomplete="current-password"
+              />
+            </div>
+            <div class="field">
+              <label>Confirm Password (Register)</label>
+              <input
+                type="password"
+                id="authConfirmPassword"
+                placeholder="Ulangi password"
+                autocomplete="new-password"
+              />
+            </div>
+          </div>
+          <div class="btn-row">
+            <button
+              class="btn btn-secondary"
+              id="registerBtn"
+              onclick="registerUser()"
+            >
+              📝 Register
+            </button>
+            <button class="btn btn-primary" id="loginBtn" onclick="loginUser()">
+              🔓 Login
+            </button>
+            <button
+              class="btn btn-danger"
+              id="logoutBtn"
+              onclick="logoutUser()"
+              disabled
+            >
+              🚪 Logout
+            </button>
+          </div>
+          <div class="response-box muted" id="authResponse">
+            // Silakan register/login terlebih dahulu.
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════ HEALTH ══ -->
+      <div class="panel" id="tab-health">
+        <div class="card">
+          <div class="card-title">⚡ Health Check</div>
+          <p
+            style="color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem"
+          >
+            Cek status semua service backend termasuk Diarization.
+          </p>
+          <button class="btn btn-primary" onclick="checkHealth()">
+            Run Health Check
+          </button>
+          <div class="response-box muted" id="healthResponse">
+            // Klik "Run Health Check" untuk mulai...
+          </div>
+        </div>
+        <div class="stats-row" id="statsRow" style="display: none">
+          <div class="stat-card">
+            <span class="stat-value" id="statWhisper">—</span
+            ><span class="stat-label">Whisper (Groq)</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="statAI">—</span
+            ><span class="stat-label">AI (LLM)</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="statSupabase">—</span
+            ><span class="stat-label">Supabase</span>
+          </div>
+          <div class="stat-card" style="border-color: rgba(0, 212, 255, 0.3)">
+            <span
+              class="stat-value"
+              style="color: var(--speaker1)"
+              id="statDiarize"
+              >✅</span
+            ><span class="stat-label">Diarization</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════ RECORD ══ -->
+      <div class="panel" id="tab-record">
+        <div class="card">
+          <div class="card-title">① Buat Sesi Rapat</div>
+          <div class="field">
+            <label>Judul Rapat</label>
+            <input
+              type="text"
+              id="meetingTitle"
+              value="Test Rapat — Backend AI"
+              style="margin-top: 0.4rem"
+            />
+          </div>
+          <div class="btn-row">
+            <button
+              class="btn btn-primary"
+              id="createBtn"
+              onclick="createMeeting()"
+            >
+              🚀 Buat Meeting
+            </button>
+          </div>
+          <div id="meetingIdDisplay" style="display: none; margin-top: 1rem">
+            <label>Meeting ID:</label>
+            <div class="meeting-id-display">
+              <span id="meetingIdText">—</span>
+              <button class="copy-btn" onclick="copyMeetingId()">📋</button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="card"
+          id="step2Card"
+          style="opacity: 0.4; pointer-events: none"
+        >
+          <div class="card-title">② Pilih Sumber Audio &amp; Rekam</div>
+
+          <!-- Diarization info -->
+          <div class="diarize-info-box">
+            👥 <strong>Speaker Diarization aktif</strong> — backend otomatis
+            mendeteksi siapa berbicara berdasarkan jeda suara. Hasil muncul di
+            tab "<strong>Berlabel Speaker</strong>" setelah rekam selesai.
+          </div>
+
+          <!-- Audio Mode Selector -->
+          <label style="display: block; margin-bottom: 0.75rem"
+            >Sumber Audio:</label
+          >
+          <div class="audio-mode-grid">
+            <div
+              class="audio-mode-btn selected"
+              id="mode-mic"
+              onclick="selectMode('mic')"
+            >
+              <span class="mode-icon">🎤</span>
+              <span class="mode-label">Mic Only</span>
+              <span class="mode-desc">Rekam suara dari mikrofon perangkat</span>
+            </div>
+            <div
+              class="audio-mode-btn"
+              id="mode-screen"
+              onclick="selectMode('screen')"
+            >
+              <span class="mode-icon">🖥️</span>
+              <span class="mode-label">Meeting Audio</span>
+              <span class="mode-desc"
+                >Rekam audio dari tab/window (GMeet, Zoom, dll)</span
+              >
+            </div>
+            <div
+              class="audio-mode-btn"
+              id="mode-both"
+              onclick="selectMode('both')"
+            >
+              <span class="mode-icon">🎙️+🖥️</span>
+              <span class="mode-label">Mic + Meeting</span>
+              <span class="mode-desc"
+                >Gabung mikrofon &amp; audio internal sekaligus</span
+              >
+            </div>
+          </div>
+
+          <div class="info-box" id="infoScreen">
+            💡 Saat klik rekam, browser akan minta pilih Tab/Window. Pilih tab
+            <strong>Google Meet / Zoom</strong> dan centang
+            <strong>"Share tab audio"</strong>.
+          </div>
+          <div class="info-box" id="infoBoth">
+            💡 Browser akan minta akses mikrofon DAN pilih tab/window. Keduanya
+            akan digabung menjadi satu stream audio.
+          </div>
+
+          <div class="record-center">
+            <div class="timer" id="timer">00:00</div>
+            <button
+              class="record-btn"
+              id="recordBtn"
+              onclick="toggleRecording()"
+            >
+              🎙
+            </button>
+            <div class="record-status" id="recordStatus">
+              Klik untuk mulai rekam
+            </div>
+          </div>
+
+          <!-- Transcript dengan 2 tabs: Plain & Diarized -->
+          <div class="transcript-tabs">
+            <button
+              class="transcript-tab active"
+              id="tabPlain"
+              onclick="switchTranscriptTab('plain')"
+            >
+              📝 Transkrip Biasa
+            </button>
+            <button
+              class="transcript-tab diarized"
+              id="tabDiarized"
+              onclick="switchTranscriptTab('diarized')"
+            >
+              👥 Berlabel Speaker
+            </button>
+          </div>
+          <div class="transcript-content active" id="contentPlain">
+            <div class="transcript-box" id="transcriptBox">
+              <span style="color: var(--muted)"
+                >Transkrip muncul setelah stop rekam...</span
+              >
+            </div>
+          </div>
+          <div class="transcript-content" id="contentDiarized">
+            <div
+              class="transcript-box"
+              id="diarizedBox"
+              style="border-color: rgba(0, 212, 255, 0.2)"
+            >
+              <span style="color: var(--muted)"
+                >Transkrip berlabel speaker muncul setelah rekam
+                selesai...</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 — Diarization result banner + Analyze -->
+        <div
+          class="card"
+          id="step3Card"
+          style="opacity: 0.4; pointer-events: none"
+        >
+          <div class="card-title">③ Hasil Diarization + Analisis AI</div>
+
+          <!-- Diarization result banner -->
+          <div class="diarization-banner" id="diarizationBanner">
+            <div>
+              <div class="banner-title">👥 Speaker Terdeteksi</div>
+              <div class="speaker-pills" id="speakerPills"></div>
+            </div>
+          </div>
+
+          <p
+            style="color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem"
+          >
+            Kirim transkrip + diarization ke AI untuk ringkasan, action items,
+            dan rekomendasi strategis.
+          </p>
+          <div class="btn-row">
+            <button
+              class="btn btn-danger"
+              id="stopBtn"
+              onclick="stopRecording()"
+              disabled
+            >
+              ⏹ Stop Recording
+            </button>
+            <button
+              class="btn btn-primary"
+              id="analyzeBtn"
+              onclick="analyzeMeeting()"
+              disabled
+            >
+              🧠 Analisis AI
+            </button>
+          </div>
+          <div class="response-box muted" id="analysisResponse">
+            // Hasil analisis AI akan muncul di sini...
+          </div>
+        </div>
+
+        <div class="card" id="actionItemsCard" style="display: none">
+          <div class="card-title">✅ Action Items</div>
+          <div id="actionItemsList"></div>
+        </div>
+        <div class="card" id="recommendationsCard" style="display: none">
+          <div class="card-title">💡 Rekomendasi AI</div>
+          <div id="recommendationsList"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════ HISTORY ══ -->
+      <div class="panel" id="tab-history">
+        <div class="card">
+          <div class="card-title" style="justify-content: space-between">
+            <span>📋 Riwayat Rapat</span>
+            <span
+              id="historyCount"
+              style="
+                font-family: var(--mono);
+                font-size: 0.75rem;
+                color: var(--muted);
+              "
+            ></span>
+          </div>
+          <button
+            class="btn btn-primary"
+            id="loadHistoryBtn"
+            onclick="loadHistory()"
+          >
+            🔄 Load History
+          </button>
+        </div>
+        <div id="historyList"></div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════ LOGS ══ -->
+      <div class="panel" id="tab-logs">
+        <div class="card">
+          <div class="card-title" style="justify-content: space-between">
+            <span>📟 Activity Logs</span>
+            <button
+              class="btn btn-secondary"
+              onclick="clearLogs()"
+              style="padding: 0.3rem 0.8rem; font-size: 0.75rem"
+            >
+              Clear
+            </button>
+          </div>
+          <div
+            class="response-box"
+            id="logsBox"
+            style="color: var(--text); max-height: 500px"
+          >
+            <div class="log-entry">
+              <span class="log-time">[init]</span
+              ><span class="log-msg info"
+                >Meeting AI Tester v4.1 siap (Groq Whisper + Diarization +
+                Edit).</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════ MODAL ══ -->
+    <div
+      class="modal-overlay"
+      id="modalOverlay"
+      style="display: none"
+      onclick="onOverlayClick(event)"
+    >
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title" id="modalTitle">Loading...</div>
+          <button class="modal-close" onclick="closeModal()">✕ Tutup</button>
+        </div>
+        <div class="modal-meta" id="modalMeta"></div>
+
+        <!-- Speaker info if diarized -->
+        <div
+          id="modalDiarizationBanner"
+          style="display: none; margin-bottom: 1rem"
+        >
+          <div
+            style="
+              background: linear-gradient(
+                135deg,
+                rgba(0, 212, 255, 0.08),
+                rgba(124, 58, 237, 0.08)
+              );
+              border: 1px solid rgba(0, 212, 255, 0.2);
+              border-radius: 10px;
+              padding: 0.9rem 1.2rem;
+            "
+          >
+            <div
+              style="
+                font-family: var(--mono);
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                color: var(--speaker1);
+                margin-bottom: 0.5rem;
+              "
+            >
+              👥 Diarization Result
+            </div>
+            <div id="modalSpeakerPills" class="speaker-pills"></div>
+          </div>
+        </div>
+
+        <div class="section-title">🧠 Summary AI</div>
+        <div class="summary-text" id="modalSummary">—</div>
+
+        <div class="section-title">💡 Rekomendasi AI</div>
+        <div id="modalRecommendations">—</div>
+
+        <div class="section-title">✅ Action Items</div>
+        <div id="modalActionItems">—</div>
+
+        <!-- Transcript tabs in modal -->
+        <div id="modalTranscriptSection">
+          <div class="section-title">📝 Transkrip</div>
+          <div class="transcript-tabs" id="modalTranscriptTabs">
+            <button
+              class="transcript-tab active"
+              id="modalTabPlain"
+              onclick="switchModalTab('plain')"
+            >
+              Biasa
+            </button>
+            <button
+              class="transcript-tab diarized"
+              id="modalTabDiarized"
+              onclick="switchModalTab('diarized')"
+              style="display: none"
+            >
+              👥 Berlabel Speaker
+            </button>
+          </div>
+          <div class="transcript-content active" id="modalContentPlain">
+            <div class="transcript-text" id="modalTranscript">—</div>
+          </div>
+          <div class="transcript-content" id="modalContentDiarized">
+            <div class="diarized-text" id="modalDiarizedTranscript">—</div>
+          </div>
+        </div>
+
+        <!-- Edit Zone -->
+        <div class="edit-zone">
+          <div class="edit-zone-title">✏️ Edit Rapat</div>
+          <button
+            class="btn btn-secondary"
+            onclick="toggleEditForm()"
+            id="editToggleBtn"
+            style="font-size: 0.8rem; padding: 0.5rem 1.2rem"
+          >
+            ✏️ Edit Judul / Transkrip
+          </button>
+          <div class="edit-form" id="editForm">
+            <div class="edit-field">
+              <label>Judul Rapat</label>
+              <input
+                type="text"
+                id="editTitle"
+                placeholder="Kosongkan jika tidak ingin mengubah judul"
+              />
+            </div>
+            <div class="edit-field">
+              <label>Transkrip (koreksi manual)</label>
+              <textarea
+                id="editTranscript"
+                placeholder="Kosongkan jika tidak ingin mengubah transkrip..."
+              ></textarea>
+            </div>
+            <label class="reanalyze-toggle">
+              <input type="checkbox" id="editReanalyze" />
+              <span
+                >Re-generate <strong>AI Analysis</strong> setelah edit (summary
+                + action items + rekomendasi)</span
+              >
+            </label>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap">
+              <button
+                class="btn btn-primary"
+                onclick="doEdit()"
+                id="editSaveBtn"
+                style="font-size: 0.82rem; padding: 0.55rem 1.2rem"
+              >
+                💾 Simpan Perubahan
+              </button>
+              <button
+                class="btn btn-secondary"
+                onclick="toggleEditForm()"
+                style="font-size: 0.82rem; padding: 0.55rem 1.2rem"
+              >
+                Batal
+              </button>
+            </div>
+            <div class="edit-result-box" id="editResultBox"></div>
+          </div>
+        </div>
+
+        <!-- Delete Zone -->
+        <div class="delete-zone">
+          <button
+            class="btn btn-danger"
+            onclick="showDeleteConfirm()"
+            style="font-size: 0.8rem; padding: 0.5rem 1.2rem"
+          >
+            🗑 Hapus Rapat Ini
+          </button>
+          <div class="delete-confirm-box" id="deleteConfirmBox">
+            <p>
+              ⚠️ Yakin ingin menghapus rapat ini? Tindakan ini tidak bisa
+              dibatalkan.
+            </p>
+            <div style="display: flex; gap: 0.5rem">
+              <button
+                class="btn btn-danger"
+                onclick="doDelete()"
+                style="font-size: 0.8rem; padding: 0.5rem 1rem"
+              >
+                Ya, Hapus
+              </button>
+              <button
+                class="btn btn-secondary"
+                onclick="hideDeleteConfirm()"
+                style="font-size: 0.8rem; padding: 0.5rem 1rem"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let currentMeetingId = null,
+        ws = null,
+        mediaRecorder = null;
+      let isRecording = false,
+        timerInterval = null,
+        timerSeconds = 0;
+      let fullTranscript = "",
+        diarizedTranscript = "",
+        speakersDetected = 0;
+      let currentDetailId = null;
+      let audioMode = "mic"; // mic | screen | both
+      let isAuthenticated = false,
+        accessToken = "";
+
+      const getUrl = () =>
+        document.getElementById("backendUrl").value.replace(/\/$/, "");
+      const getUserId = () => document.getElementById("userId").value;
+      const getApiKey = () => document.getElementById("apiKey").value;
+      const authHeaders = () => {
+        const headers = {
+          "Content-Type": "application/json",
+          "X-API-Key": getApiKey(),
+        };
+        if (accessToken) {
+          headers.Authorization = "Bearer " + accessToken;
+        }
+        return headers;
       };
-      ws.onmessage = e => {
-        const msg = JSON.parse(e.data);
-        if (msg.type === 'transcript') {
-          appendTranscript(msg.text);
-          fullTranscript += ' ' + msg.text;
-          log('Transkripsi: "' + msg.text.substring(0,60) + '..."', 'success');
-        }
-        else if (msg.type === 'audio_received') {
-          log('Buffer: ' + msg.buffer_kb + ' KB', 'default');
-        }
-        else if (msg.type === 'processing') {
-          document.getElementById('recordStatus').textContent = '⏳ ' + msg.message;
-          appendTranscript('⏳ ' + msg.message);
-          log(msg.message, 'info');
-        }
-        else if (msg.type === 'session_ended') {
-          fullTranscript     = msg.full_transcript     || '';
-          diarizedTranscript = msg.diarized_transcript || '';
-          speakersDetected   = msg.speakers_detected   || 0;
 
-          // Update plain transcript box
-          if (fullTranscript) {
-            document.getElementById('transcriptBox').textContent = fullTranscript;
+      function setProtectedUiLocked(locked) {
+        const createBtn = document.getElementById("createBtn");
+        const recordBtn = document.getElementById("recordBtn");
+        const loadHistoryBtn = document.getElementById("loadHistoryBtn");
+        const stopBtn = document.getElementById("stopBtn");
+        const analyzeBtn = document.getElementById("analyzeBtn");
+
+        if (createBtn) createBtn.disabled = locked;
+        if (recordBtn) recordBtn.disabled = locked;
+        if (loadHistoryBtn) loadHistoryBtn.disabled = locked;
+        if (stopBtn) stopBtn.disabled = true;
+        if (analyzeBtn) analyzeBtn.disabled = true;
+
+        if (locked) {
+          document.getElementById("step2Card").style.cssText =
+            "opacity:0.4;pointer-events:none";
+          document.getElementById("step3Card").style.cssText =
+            "opacity:0.4;pointer-events:none";
+        }
+      }
+
+      function setAuthState(authed, message) {
+        isAuthenticated = authed;
+        const authStateInput = document.getElementById("authState");
+        const logoutBtn = document.getElementById("logoutBtn");
+        const loginBtn = document.getElementById("loginBtn");
+        const registerBtn = document.getElementById("registerBtn");
+
+        authStateInput.value = authed ? "Login berhasil" : "Belum login";
+        logoutBtn.disabled = !authed;
+        loginBtn.disabled = authed;
+        registerBtn.disabled = authed;
+        setProtectedUiLocked(!authed);
+
+        if (message) {
+          const authBox = document.getElementById("authResponse");
+          authBox.className = authed ? "response-box" : "response-box muted";
+          authBox.textContent = message;
+        }
+      }
+
+      function ensureAuthenticated(actionName) {
+        if (isAuthenticated) return true;
+        alert("Silakan login terlebih dahulu.");
+        log(actionName + " ditolak: belum login", "error");
+        switchTab("auth", document.getElementById("tabButtonAuth"));
+        return false;
+      }
+
+      async function registerUser() {
+        const email = document.getElementById("authEmail").value.trim();
+        const password = document.getElementById("authPassword").value;
+        const confirm = document.getElementById("authConfirmPassword").value;
+        const box = document.getElementById("authResponse");
+
+        if (!email || !password || !confirm) {
+          alert("Email, password, dan konfirmasi password wajib diisi.");
+          return;
+        }
+
+        box.className = "response-box muted";
+        box.textContent = "// Memproses register...";
+
+        try {
+          const res = await fetch(getUrl() + "/api/v1/auth/signup", {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({
+              email,
+              password,
+              confirm_password: confirm,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(JSON.stringify(data));
+          box.className = "response-box";
+          box.textContent = JSON.stringify(data, null, 2);
+          log("Register berhasil. Silakan lanjut login.", "success");
+        } catch (e) {
+          box.className = "response-box error";
+          box.textContent = "// ERROR: " + e.message;
+          log("Register gagal: " + e.message, "error");
+        }
+      }
+
+      async function loginUser() {
+        const email = document.getElementById("authEmail").value.trim();
+        const password = document.getElementById("authPassword").value;
+        const box = document.getElementById("authResponse");
+
+        if (!email || !password) {
+          alert("Email dan password wajib diisi.");
+          return;
+        }
+
+        box.className = "response-box muted";
+        box.textContent = "// Memproses login...";
+
+        try {
+          const res = await fetch(getUrl() + "/api/v1/auth/login", {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ email, password }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(JSON.stringify(data));
+
+          accessToken = data.access_token || "";
+          if (data.user_id) {
+            document.getElementById("userId").value = data.user_id;
           }
 
-          // Update diarized transcript box
-          const diarBox = document.getElementById('diarizedBox');
-          if (diarizedTranscript) {
-            renderDiarizedTranscript(diarizedTranscript, diarBox);
-            // Switch to diarized tab automatically
-            switchTranscriptTab('diarized');
-          }
+          setAuthState(
+            true,
+            JSON.stringify(
+              {
+                status: data.status,
+                message: data.message,
+                user_id: data.user_id,
+              },
+              null,
+              2,
+            ),
+          );
+          log("Login berhasil. Fitur tester dibuka.", "success");
+          switchTab("health", document.getElementById("tabButtonHealth"));
+        } catch (e) {
+          setAuthState(false, "// ERROR: " + e.message);
+          document.getElementById("authResponse").className =
+            "response-box error";
+          log("Login gagal: " + e.message, "error");
+        }
+      }
 
-          // Show diarization banner
-          if (speakersDetected > 0) {
-            showDiarizationBanner(
-              speakersDetected,
-              document.getElementById('speakerPills'),
-              document.getElementById('diarizationBanner')
+      function logoutUser() {
+        if (isRecording) {
+          stopRecording();
+        }
+        isAuthenticated = false;
+        accessToken = "";
+        currentMeetingId = null;
+        fullTranscript = "";
+        diarizedTranscript = "";
+        speakersDetected = 0;
+        document.getElementById("meetingIdDisplay").style.display = "none";
+        document.getElementById("transcriptBox").innerHTML =
+          '<span style="color: var(--muted)">Transkrip muncul setelah stop rekam...</span>';
+        document.getElementById("diarizedBox").innerHTML =
+          '<span style="color: var(--muted)">Transkrip berlabel speaker muncul setelah rekam selesai...</span>';
+        setAuthState(false, "// Session logout. Silakan login kembali.");
+        log("Logout berhasil.", "info");
+        switchTab("auth", document.getElementById("tabButtonAuth"));
+      }
+
+      // Speaker color classes (cycle if >4)
+      const SPEAKER_CLASSES = ["s1", "s2", "s3", "s4"];
+      function speakerClass(label) {
+        const num = parseInt((label || "").replace(/\D/g, "")) || 1;
+        return SPEAKER_CLASSES[(num - 1) % SPEAKER_CLASSES.length];
+      }
+
+      // ── Audio Mode ────────────────────────────────────────────
+      function selectMode(mode) {
+        audioMode = mode;
+        ["mic", "screen", "both"].forEach((m) => {
+          document
+            .getElementById("mode-" + m)
+            .classList.toggle("selected", m === mode);
+        });
+        document.getElementById("infoScreen").style.display =
+          mode === "screen" ? "block" : "none";
+        document.getElementById("infoBoth").style.display =
+          mode === "both" ? "block" : "none";
+        const icons = { mic: "🎙", screen: "🖥️", both: "🎙️+🖥️" };
+        document.getElementById("recordBtn").textContent = icons[mode];
+        log("Mode audio: " + mode, "info");
+      }
+
+      async function getAudioStream() {
+        if (audioMode === "mic")
+          return await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        if (audioMode === "screen") {
+          const display = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: { echoCancellation: false, noiseSuppression: false },
+          });
+          display.getVideoTracks().forEach((t) => t.stop());
+          const audioTracks = display.getAudioTracks();
+          if (!audioTracks.length)
+            throw new Error(
+              'Tidak ada audio dari tab/window. Centang "Share tab audio".',
             );
-            log(`👥 Diarization: ${speakersDetected} speaker terdeteksi.`, 'diarize');
+          return new MediaStream(audioTracks);
+        }
+
+        if (audioMode === "both") {
+          const [micStream, displayStream] = await Promise.all([
+            navigator.mediaDevices.getUserMedia({ audio: true }),
+            navigator.mediaDevices.getDisplayMedia({
+              video: true,
+              audio: { echoCancellation: false, noiseSuppression: false },
+            }),
+          ]);
+          displayStream.getVideoTracks().forEach((t) => t.stop());
+          const ctx = new AudioContext();
+          const dest = ctx.createMediaStreamDestination();
+          ctx.createMediaStreamSource(micStream).connect(dest);
+          if (displayStream.getAudioTracks().length)
+            ctx.createMediaStreamSource(displayStream).connect(dest);
+          return dest.stream;
+        }
+      }
+
+      // ── Helpers ───────────────────────────────────────────────
+      function log(msg, type = "default") {
+        const box = document.getElementById("logsBox");
+        const now = new Date().toTimeString().split(" ")[0];
+        const d = document.createElement("div");
+        d.className = "log-entry";
+        d.innerHTML = `<span class="log-time">[${now}]</span><span class="log-msg ${type}">${msg}</span>`;
+        box.appendChild(d);
+        box.scrollTop = box.scrollHeight;
+      }
+
+      function setStatus(state, text) {
+        const dot = document.getElementById("statusDot"),
+          txt = document.getElementById("statusText");
+        dot.className =
+          "status-dot " +
+          (state === "online" ? "online" : state === "error" ? "error" : "");
+        txt.textContent = text;
+        txt.style.color =
+          state === "online"
+            ? "var(--accent)"
+            : state === "error"
+              ? "var(--red)"
+              : "var(--muted)";
+      }
+
+      function switchTab(name, el) {
+        if (["record", "history"].includes(name) && !isAuthenticated) {
+          ensureAuthenticated("Akses tab " + name);
+          return;
+        }
+        const targetTabEl =
+          el || document.querySelector(`.tab[data-tab="${name}"]`);
+        document
+          .querySelectorAll(".panel")
+          .forEach((p) => p.classList.remove("active"));
+        document
+          .querySelectorAll(".tab")
+          .forEach((t) => t.classList.remove("active"));
+        document.getElementById("tab-" + name).classList.add("active");
+        if (targetTabEl) targetTabEl.classList.add("active");
+      }
+
+      function switchTranscriptTab(tab) {
+        document
+          .querySelectorAll(".transcript-tab")
+          .forEach((t) => t.classList.remove("active"));
+        document
+          .querySelectorAll(".transcript-content")
+          .forEach((c) => c.classList.remove("active"));
+        document
+          .getElementById("tab" + tab.charAt(0).toUpperCase() + tab.slice(1))
+          .classList.add("active");
+        document
+          .getElementById(
+            "content" + tab.charAt(0).toUpperCase() + tab.slice(1),
+          )
+          .classList.add("active");
+      }
+
+      function switchModalTab(tab) {
+        document
+          .querySelectorAll("#modalTranscriptTabs .transcript-tab")
+          .forEach((t) => t.classList.remove("active"));
+        document
+          .getElementById("modalTabPlain")
+          .closest(".transcript-tabs")
+          .querySelectorAll('.transcript-content, [id^="modalContent"]')
+          .forEach((c) => c.classList.remove("active"));
+        document
+          .getElementById(
+            "modalTab" + tab.charAt(0).toUpperCase() + tab.slice(1),
+          )
+          .classList.add("active");
+        document
+          .getElementById(
+            "modalContent" + tab.charAt(0).toUpperCase() + tab.slice(1),
+          )
+          .classList.add("active");
+      }
+
+      const clearLogs = () =>
+        (document.getElementById("logsBox").innerHTML = "");
+      const copyMeetingId = () => {
+        navigator.clipboard.writeText(currentMeetingId);
+        log("Meeting ID disalin", "info");
+      };
+      const formatTime = (s) =>
+        String(Math.floor(s / 60)).padStart(2, "0") +
+        ":" +
+        String(s % 60).padStart(2, "0");
+
+      // ── Render diarized transcript (colorized) ────────────────
+      function renderDiarizedTranscript(text, targetEl) {
+        if (!text || !text.trim()) {
+          targetEl.innerHTML =
+            '<span style="color:var(--muted)">Tidak ada data diarization.</span>';
+          return;
+        }
+        const lines = text.split("\n").filter((l) => l.trim());
+        targetEl.innerHTML = lines
+          .map((line) => {
+            const match = line.match(/^\[(.+?)\]:\s*(.*)$/);
+            if (match) {
+              const label = match[1],
+                content = match[2];
+              const cls = speakerClass(label);
+              return `<span class="speaker-line"><span class="speaker-label ${cls}">${label}</span><span class="speaker-text">${content}</span></span>`;
+            }
+            return `<span class="speaker-line" style="color:var(--muted)">${line}</span>`;
+          })
+          .join("");
+      }
+
+      // ── Show diarization result banner ────────────────────────
+      function showDiarizationBanner(count, targetPillsEl, bannerEl) {
+        if (count <= 0) return;
+        bannerEl.classList.add("visible");
+        const pills = [];
+        for (let i = 1; i <= count; i++) {
+          const cls = speakerClass("Speaker " + i);
+          pills.push(
+            `<span class="speaker-pill ${cls}">👤 Speaker ${i}</span>`,
+          );
+        }
+        targetPillsEl.innerHTML = pills.join("");
+      }
+
+      // ── Health ────────────────────────────────────────────────
+      async function checkHealth() {
+        const box = document.getElementById("healthResponse");
+        box.className = "response-box muted";
+        box.textContent = "// Checking...";
+        try {
+          const res = await fetch(getUrl() + "/health");
+          const data = await res.json();
+          box.className = "response-box";
+          box.textContent = JSON.stringify(data, null, 2);
+          document.getElementById("statsRow").style.display = "flex";
+          document.getElementById("statWhisper").textContent =
+            data.services?.whisper === "groq_api" ? "✅" : "❌";
+          document.getElementById("statAI").textContent =
+            data.services?.ai === "configured" ? "✅" : "❌";
+          document.getElementById("statSupabase").textContent =
+            data.services?.supabase === "configured" ? "✅" : "❌";
+          document.getElementById("statDiarize").textContent = "✅";
+          setStatus("online", "Online");
+          log("Health OK — Diarization: aktif", "success");
+        } catch (e) {
+          box.className = "response-box error";
+          box.textContent = "// ERROR: " + e.message;
+          setStatus("error", "Offline");
+          log("Health gagal: " + e.message, "error");
+        }
+      }
+
+      // ── Create Meeting ────────────────────────────────────────
+      async function createMeeting() {
+        if (!ensureAuthenticated("Buat meeting")) return;
+        const title = document.getElementById("meetingTitle").value;
+        if (!title) {
+          alert("Isi judul rapat!");
+          return;
+        }
+        document.getElementById("createBtn").disabled = true;
+        try {
+          const res = await fetch(getUrl() + "/api/v1/meetings/", {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ title, user_id: getUserId() }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(JSON.stringify(data));
+          currentMeetingId = data.meeting_id;
+          document.getElementById("meetingIdText").textContent =
+            currentMeetingId;
+          document.getElementById("meetingIdDisplay").style.display = "block";
+          document.getElementById("step2Card").style.cssText =
+            "opacity:1;pointer-events:auto";
+          document.getElementById("step3Card").style.cssText =
+            "opacity:1;pointer-events:auto";
+          document.getElementById("stopBtn").disabled = false;
+          fullTranscript = "";
+          diarizedTranscript = "";
+          speakersDetected = 0;
+          log("Meeting dibuat: " + currentMeetingId, "success");
+        } catch (e) {
+          log("Gagal buat meeting: " + e.message, "error");
+          alert("Error: " + e.message);
+        }
+        document.getElementById("createBtn").disabled = false;
+      }
+
+      // ── Recording ─────────────────────────────────────────────
+      async function toggleRecording() {
+        if (!ensureAuthenticated("Mulai rekaman")) return;
+        if (!currentMeetingId) {
+          alert("Buat meeting dulu!");
+          return;
+        }
+        isRecording ? stopRecording() : startRecording();
+      }
+
+      async function startRecording() {
+        try {
+          log("Meminta akses audio mode: " + audioMode + "...", "info");
+          const stream = await getAudioStream();
+          const wsUrl =
+            getUrl().replace("http", "ws") +
+            "/api/v1/ws/transcribe/" +
+            currentMeetingId +
+            "?api_key=" +
+            encodeURIComponent(getApiKey());
+          ws = new WebSocket(wsUrl);
+          ws.onopen = () => {
+            log("WebSocket connected ✓", "success");
+            ws._ping = setInterval(
+              () =>
+                ws.readyState === WebSocket.OPEN &&
+                ws.send(JSON.stringify({ type: "ping" })),
+              30000,
+            );
+          };
+          ws.onmessage = (e) => {
+            const msg = JSON.parse(e.data);
+            if (msg.type === "transcript") {
+              appendTranscript(msg.text);
+              fullTranscript += " " + msg.text;
+              log(
+                'Transkripsi: "' + msg.text.substring(0, 60) + '..."',
+                "success",
+              );
+            } else if (msg.type === "audio_received") {
+              log("Buffer: " + msg.buffer_kb + " KB", "default");
+            } else if (msg.type === "processing") {
+              document.getElementById("recordStatus").textContent =
+                "⏳ " + msg.message;
+              appendTranscript("⏳ " + msg.message);
+              log(msg.message, "info");
+            } else if (msg.type === "session_ended") {
+              fullTranscript = msg.full_transcript || "";
+              diarizedTranscript = msg.diarized_transcript || "";
+              speakersDetected = msg.speakers_detected || 0;
+
+              // Update plain transcript box
+              if (fullTranscript) {
+                document.getElementById("transcriptBox").textContent =
+                  fullTranscript;
+              }
+
+              // Update diarized transcript box
+              const diarBox = document.getElementById("diarizedBox");
+              if (diarizedTranscript) {
+                renderDiarizedTranscript(diarizedTranscript, diarBox);
+                // Switch to diarized tab automatically
+                switchTranscriptTab("diarized");
+              }
+
+              // Show diarization banner
+              if (speakersDetected > 0) {
+                showDiarizationBanner(
+                  speakersDetected,
+                  document.getElementById("speakerPills"),
+                  document.getElementById("diarizationBanner"),
+                );
+                log(
+                  `👥 Diarization: ${speakersDetected} speaker terdeteksi.`,
+                  "diarize",
+                );
+              }
+
+              document.getElementById("analyzeBtn").disabled = false;
+              document.getElementById("recordStatus").textContent =
+                "✅ Transkripsi + Diarization selesai!";
+              log("Sesi selesai. Klik Analisis AI!", "success");
+            } else if (msg.type === "error") {
+              log("WS Error: " + msg.message, "error");
+            }
+          };
+          ws.onerror = () => log("WebSocket error", "error");
+          ws.onclose = () => log("WebSocket closed", "info");
+
+          mediaRecorder = new MediaRecorder(stream, {
+            mimeType: "audio/webm;codecs=opus",
+          });
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0 && ws?.readyState === WebSocket.OPEN) {
+              e.data.arrayBuffer().then((buf) => ws.send(buf));
+              log(
+                "Chunk dikirim (" + (e.data.size / 1024).toFixed(1) + " KB)",
+                "default",
+              );
+            }
+          };
+          mediaRecorder.start(3000);
+          isRecording = true;
+
+          const modeLabel = {
+            mic: "🎤 Mic",
+            screen: "🖥️ Meeting Audio",
+            both: "🎙️+🖥️ Mic + Meeting",
+          };
+          document.getElementById("recordBtn").classList.add("recording");
+          document.getElementById("recordBtn").textContent = "⏸";
+          document.getElementById("recordStatus").textContent =
+            "🔴 Merekam — " + modeLabel[audioMode];
+          document.getElementById("recordStatus").className =
+            "record-status active";
+          document.getElementById("transcriptBox").innerHTML = "";
+          document.getElementById("diarizedBox").innerHTML =
+            '<span style="color:var(--muted)">Menunggu rekaman selesai...</span>';
+          timerSeconds = 0;
+          timerInterval = setInterval(() => {
+            timerSeconds++;
+            document.getElementById("timer").textContent =
+              formatTime(timerSeconds);
+            document.getElementById("timer").className = "timer recording";
+          }, 1000);
+          log("Recording dimulai (" + audioMode + ") ✓", "success");
+        } catch (e) {
+          log("Gagal akses audio: " + e.message, "error");
+          alert(
+            "Gagal akses audio:\n" +
+              e.message +
+              '\n\nPastikan:\n- Izin mikrofon dibolehkan\n- Centang "Share tab audio" saat pilih tab',
+          );
+        }
+      }
+
+      function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+          mediaRecorder.stop();
+          mediaRecorder.stream.getTracks().forEach((t) => t.stop());
+        }
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          clearInterval(ws._ping);
+          ws.send(JSON.stringify({ type: "stop" }));
+        }
+        clearInterval(timerInterval);
+        isRecording = false;
+        document.getElementById("recordBtn").classList.remove("recording");
+        document.getElementById("recordBtn").textContent =
+          { mic: "🎤", screen: "🖥️", both: "🎙️+🖥️" }[audioMode] || "🎙";
+        document.getElementById("recordStatus").textContent =
+          "Rekaman selesai — menunggu transkripsi & diarization...";
+        document.getElementById("recordStatus").className = "record-status";
+        document.getElementById("timer").className = "timer";
+        log("Recording dihentikan — menunggu hasil dari backend...", "info");
+      }
+
+      function appendTranscript(text) {
+        const box = document.getElementById("transcriptBox");
+        const span = document.createElement("span");
+        span.className = "chunk new";
+        span.textContent = text + " ";
+        box.appendChild(span);
+        box.scrollTop = box.scrollHeight;
+      }
+
+      // ── Analyze ───────────────────────────────────────────────
+      async function analyzeMeeting() {
+        if (!ensureAuthenticated("Analisis AI")) return;
+        if (!currentMeetingId) {
+          alert("Buat meeting dulu!");
+          return;
+        }
+        if (!fullTranscript.trim())
+          fullTranscript =
+            document.getElementById("transcriptBox").textContent ||
+            "Test transkrip.";
+        document.getElementById("analyzeBtn").disabled = true;
+        document.getElementById("analysisResponse").className =
+          "response-box muted";
+        document.getElementById("analysisResponse").textContent =
+          "// Mengirim ke AI (dengan konteks diarization)... mohon tunggu...";
+        log(
+          "Mengirim transkrip ke AI" +
+            (diarizedTranscript ? " (diarized)" : "") +
+            "...",
+          "info",
+        );
+        try {
+          const body = {
+            meeting_id: currentMeetingId,
+            full_transcript: fullTranscript.trim(),
+            diarized_transcript: diarizedTranscript || null,
+          };
+          const res = await fetch(
+            getUrl() + "/api/v1/meetings/" + currentMeetingId + "/finish",
+            {
+              method: "POST",
+              headers: authHeaders(),
+              body: JSON.stringify(body),
+            },
+          );
+          const data = await res.json();
+          if (!res.ok) throw new Error(JSON.stringify(data));
+          document.getElementById("analysisResponse").className =
+            "response-box";
+          document.getElementById("analysisResponse").textContent =
+            JSON.stringify(data, null, 2);
+          renderActionItems(data.action_items || []);
+          renderRecommendations(data.recommendations || []);
+          const speakerInfo = data.speakers_detected
+            ? ` | 👥 ${data.speakers_detected} speaker`
+            : "";
+          log(
+            `Analisis selesai! Action: ${data.action_items?.length || 0}, Rekom: ${data.recommendations?.length || 0}${speakerInfo}`,
+            "success",
+          );
+        } catch (e) {
+          document.getElementById("analysisResponse").className =
+            "response-box error";
+          document.getElementById("analysisResponse").textContent =
+            "// ERROR: " + e.message;
+          log("Analisis gagal: " + e.message, "error");
+        }
+        document.getElementById("analyzeBtn").disabled = false;
+      }
+
+      function renderActionItems(items) {
+        const card = document.getElementById("actionItemsCard"),
+          list = document.getElementById("actionItemsList");
+        if (!items.length) {
+          card.style.display = "none";
+          return;
+        }
+        card.style.display = "block";
+        list.innerHTML = items
+          .map(
+            (i) =>
+              `<div class="action-item"><div class="task">☑ ${i.task}</div><div class="meta">${i.assignee ? `<span class="tag tag-person">👤 ${i.assignee}</span>` : ""} ${i.deadline ? `<span class="tag tag-deadline">📅 ${i.deadline}</span>` : ""}</div></div>`,
+          )
+          .join("");
+      }
+
+      function renderRecommendations(recs) {
+        const card = document.getElementById("recommendationsCard"),
+          list = document.getElementById("recommendationsList");
+        if (!recs?.length) {
+          card.style.display = "none";
+          return;
+        }
+        card.style.display = "block";
+        const icon = { high: "🔴", medium: "🟡", low: "🟢" };
+        list.innerHTML = recs
+          .map(
+            (r) =>
+              `<div class="rec-card priority-${r.priority || "medium"}"><div class="rec-title">${icon[r.priority] || "🟡"} ${r.title} <span class="priority-tag ${r.priority || "medium"}">${(r.priority || "medium").toUpperCase()}</span></div><div class="rec-detail">${r.detail}</div></div>`,
+          )
+          .join("");
+      }
+
+      // ── History ───────────────────────────────────────────────
+      async function loadHistory() {
+        if (!ensureAuthenticated("Load history")) return;
+        const list = document.getElementById("historyList");
+        list.innerHTML =
+          '<div style="text-align:center;padding:2rem;color:var(--muted);font-family:var(--mono)">⏳ Loading...</div>';
+        try {
+          const res = await fetch(
+            getUrl() + "/api/v1/meetings/user/" + getUserId(),
+            {
+              headers: authHeaders(),
+            },
+          );
+          const data = await res.json();
+          if (!res.ok) throw new Error(JSON.stringify(data));
+          document.getElementById("historyCount").textContent =
+            data.length + " rapat";
+          if (!data.length) {
+            list.innerHTML =
+              '<div style="text-align:center;padding:3rem;color:var(--muted);font-family:var(--mono)">Belum ada rapat.</div>';
+            return;
           }
-
-          document.getElementById('analyzeBtn').disabled = false;
-          document.getElementById('recordStatus').textContent = '✅ Transkripsi + Diarization selesai!';
-          log('Sesi selesai. Klik Analisis AI!', 'success');
-        }
-        else if (msg.type === 'error') {
-          log('WS Error: ' + msg.message, 'error');
-        }
-      };
-      ws.onerror = () => log('WebSocket error', 'error');
-      ws.onclose = () => log('WebSocket closed', 'info');
-
-      mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-      mediaRecorder.ondataavailable = e => {
-        if (e.data.size > 0 && ws?.readyState === WebSocket.OPEN) {
-          e.data.arrayBuffer().then(buf => ws.send(buf));
-          log('Chunk dikirim (' + (e.data.size/1024).toFixed(1) + ' KB)', 'default');
-        }
-      };
-      mediaRecorder.start(3000);
-      isRecording = true;
-
-      const modeLabel = { mic:'🎤 Mic', screen:'🖥️ Meeting Audio', both:'🎙️+🖥️ Mic + Meeting' };
-      document.getElementById('recordBtn').classList.add('recording');
-      document.getElementById('recordBtn').textContent     = '⏸';
-      document.getElementById('recordStatus').textContent  = '🔴 Merekam — ' + modeLabel[audioMode];
-      document.getElementById('recordStatus').className    = 'record-status active';
-      document.getElementById('transcriptBox').innerHTML   = '';
-      document.getElementById('diarizedBox').innerHTML     = '<span style="color:var(--muted)">Menunggu rekaman selesai...</span>';
-      timerSeconds   = 0;
-      timerInterval  = setInterval(() => {
-        timerSeconds++;
-        document.getElementById('timer').textContent = formatTime(timerSeconds);
-        document.getElementById('timer').className   = 'timer recording';
-      }, 1000);
-      log('Recording dimulai (' + audioMode + ') ✓', 'success');
-    } catch (e) {
-      log('Gagal akses audio: ' + e.message, 'error');
-      alert('Gagal akses audio:\n' + e.message + '\n\nPastikan:\n- Izin mikrofon dibolehkan\n- Centang "Share tab audio" saat pilih tab');
-    }
-  }
-
-  function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-      mediaRecorder.stream.getTracks().forEach(t => t.stop());
-    }
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      clearInterval(ws._ping);
-      ws.send(JSON.stringify({type:'stop'}));
-    }
-    clearInterval(timerInterval);
-    isRecording = false;
-    document.getElementById('recordBtn').classList.remove('recording');
-    document.getElementById('recordBtn').textContent = { mic:'🎤', screen:'🖥️', both:'🎙️+🖥️' }[audioMode] || '🎙';
-    document.getElementById('recordStatus').textContent = 'Rekaman selesai — menunggu transkripsi & diarization...';
-    document.getElementById('recordStatus').className   = 'record-status';
-    document.getElementById('timer').className          = 'timer';
-    log('Recording dihentikan — menunggu hasil dari backend...', 'info');
-  }
-
-  function appendTranscript(text) {
-    const box  = document.getElementById('transcriptBox');
-    const span = document.createElement('span');
-    span.className   = 'chunk new';
-    span.textContent = text + ' ';
-    box.appendChild(span);
-    box.scrollTop = box.scrollHeight;
-  }
-
-  // ── Analyze ───────────────────────────────────────────────
-  async function analyzeMeeting() {
-    if (!currentMeetingId) { alert('Buat meeting dulu!'); return; }
-    if (!fullTranscript.trim()) fullTranscript = document.getElementById('transcriptBox').textContent || 'Test transkrip.';
-    document.getElementById('analyzeBtn').disabled       = true;
-    document.getElementById('analysisResponse').className    = 'response-box muted';
-    document.getElementById('analysisResponse').textContent  = '// Mengirim ke AI (dengan konteks diarization)... mohon tunggu...';
-    log('Mengirim transkrip ke AI' + (diarizedTranscript ? ' (diarized)' : '') + '...', 'info');
-    try {
-      const body = {
-        meeting_id:         currentMeetingId,
-        full_transcript:    fullTranscript.trim(),
-        diarized_transcript: diarizedTranscript || null,
-      };
-      const res  = await fetch(getUrl() + '/api/v1/meetings/' + currentMeetingId + '/finish', {
-        method: 'POST', headers: authHeaders(),
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(JSON.stringify(data));
-      document.getElementById('analysisResponse').className   = 'response-box';
-      document.getElementById('analysisResponse').textContent = JSON.stringify(data, null, 2);
-      renderActionItems(data.action_items || []);
-      renderRecommendations(data.recommendations || []);
-      const speakerInfo = data.speakers_detected ? ` | 👥 ${data.speakers_detected} speaker` : '';
-      log(`Analisis selesai! Action: ${data.action_items?.length||0}, Rekom: ${data.recommendations?.length||0}${speakerInfo}`, 'success');
-    } catch (e) {
-      document.getElementById('analysisResponse').className   = 'response-box error';
-      document.getElementById('analysisResponse').textContent = '// ERROR: ' + e.message;
-      log('Analisis gagal: ' + e.message, 'error');
-    }
-    document.getElementById('analyzeBtn').disabled = false;
-  }
-
-  function renderActionItems(items) {
-    const card = document.getElementById('actionItemsCard'), list = document.getElementById('actionItemsList');
-    if (!items.length) { card.style.display = 'none'; return; }
-    card.style.display = 'block';
-    list.innerHTML = items.map(i => `<div class="action-item"><div class="task">☑ ${i.task}</div><div class="meta">${i.assignee?`<span class="tag tag-person">👤 ${i.assignee}</span>`:''} ${i.deadline?`<span class="tag tag-deadline">📅 ${i.deadline}</span>`:''}</div></div>`).join('');
-  }
-
-  function renderRecommendations(recs) {
-    const card = document.getElementById('recommendationsCard'), list = document.getElementById('recommendationsList');
-    if (!recs?.length) { card.style.display = 'none'; return; }
-    card.style.display = 'block';
-    const icon = {high:'🔴',medium:'🟡',low:'🟢'};
-    list.innerHTML = recs.map(r => `<div class="rec-card priority-${r.priority||'medium'}"><div class="rec-title">${icon[r.priority]||'🟡'} ${r.title} <span class="priority-tag ${r.priority||'medium'}">${(r.priority||'medium').toUpperCase()}</span></div><div class="rec-detail">${r.detail}</div></div>`).join('');
-  }
-
-  // ── History ───────────────────────────────────────────────
-  async function loadHistory() {
-    const list = document.getElementById('historyList');
-    list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-family:var(--mono)">⏳ Loading...</div>';
-    try {
-      const res  = await fetch(getUrl() + '/api/v1/meetings/user/' + getUserId(), {
-        headers: { 'X-API-Key': getApiKey() }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(JSON.stringify(data));
-      document.getElementById('historyCount').textContent = data.length + ' rapat';
-      if (!data.length) { list.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--muted);font-family:var(--mono)">Belum ada rapat.</div>'; return; }
-      list.innerHTML = data.map(m => {
-        const speakerBadge = m.speakers_detected
-          ? `<span class="badge badge-speakers">👥 ${m.speakers_detected} speaker</span>`
-          : '';
-        return `
+          list.innerHTML = data
+            .map((m) => {
+              const speakerBadge = m.speakers_detected
+                ? `<span class="badge badge-speakers">👥 ${m.speakers_detected} speaker</span>`
+                : "";
+              return `
         <div class="history-card">
           <div class="history-card-header">
             <div>
               <div class="history-title">${m.title}</div>
-              <div class="history-date">${new Date(m.created_at).toLocaleString('id-ID')}</div>
+              <div class="history-date">${new Date(m.created_at).toLocaleString("id-ID")}</div>
             </div>
             <div style="display:flex;gap:0.4rem;flex-wrap:wrap;justify-content:flex-end">
-              <span class="badge ${m.status==='completed'?'badge-completed':'badge-recording'}">${m.status||'—'}</span>
+              <span class="badge ${m.status === "completed" ? "badge-completed" : "badge-recording"}">${m.status || "—"}</span>
               ${speakerBadge}
             </div>
           </div>
-          <div class="history-summary">${m.summary ? m.summary.substring(0,200)+(m.summary.length>200?'...':'') : '<em>Belum dianalisis AI.</em>'}</div>
+          <div class="history-summary">${m.summary ? m.summary.substring(0, 200) + (m.summary.length > 200 ? "..." : "") : "<em>Belum dianalisis AI.</em>"}</div>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
             <button class="btn btn-secondary" onclick="openDetail('${m.id}')" style="font-size:0.78rem;padding:0.4rem 0.9rem">👁 Lihat Detail</button>
             <button class="btn btn-danger" onclick="quickDelete('${m.id}',this)" style="font-size:0.78rem;padding:0.4rem 0.9rem">🗑 Hapus</button>
           </div>
           <div class="history-id">${m.id}</div>
         </div>`;
-      }).join('');
-      log('History: ' + data.length + ' rapat', 'success');
-    } catch (e) {
-      list.innerHTML = `<div style="color:var(--red);font-family:var(--mono);padding:1rem">ERROR: ${e.message}</div>`;
-      log('Gagal load history: ' + e.message, 'error');
-    }
-  }
-
-  async function quickDelete(id, btn) {
-    if (!confirm('Hapus rapat ini?')) return;
-    btn.disabled = true; btn.textContent = '⏳';
-    try {
-      const res = await fetch(getUrl() + '/api/v1/meetings/' + id + '?user_id=' + getUserId(), {
-        method: 'DELETE', headers: { 'X-API-Key': getApiKey() }
-      });
-      if (!res.ok) throw new Error('Gagal');
-      btn.closest('.history-card').remove();
-      document.getElementById('historyCount').textContent = document.querySelectorAll('.history-card').length + ' rapat';
-      log('Dihapus: ' + id, 'success');
-    } catch (e) { btn.disabled = false; btn.textContent = '🗑 Hapus'; alert('Gagal hapus: ' + e.message); }
-  }
-
-  // ── Modal ─────────────────────────────────────────────────
-  async function openDetail(id) {
-    currentDetailId = id;
-    document.getElementById('modalOverlay').style.display = 'flex';
-    ['modalTitle','modalSummary','modalTranscript','modalActionItems','modalRecommendations'].forEach(x =>
-      document.getElementById(x).textContent = '⏳...'
-    );
-    document.getElementById('modalDiarizedTranscript').innerHTML = '';
-    document.getElementById('modalMeta').textContent = '';
-    document.getElementById('modalDiarizationBanner').style.display = 'none';
-    document.getElementById('modalTabDiarized').style.display = 'none';
-    // reset modal tabs
-    document.getElementById('modalTabPlain').classList.add('active');
-    document.getElementById('modalTabDiarized').classList.remove('active');
-    document.getElementById('modalContentPlain').classList.add('active');
-    document.getElementById('modalContentDiarized').classList.remove('active');
-    hideDeleteConfirm();
-    try {
-      const res = await fetch(getUrl() + '/api/v1/meetings/' + id, {
-        headers: { 'X-API-Key': getApiKey() }
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(JSON.stringify(d));
-
-      document.getElementById('modalTitle').textContent = d.title;
-
-      const speakerMeta = d.speakers_detected ? ` | 👥 ${d.speakers_detected} speaker` : '';
-      document.getElementById('modalMeta').innerHTML =
-        `🕐 ${new Date(d.created_at).toLocaleString('id-ID')}<br>🆔 ${d.meeting_id}<br>📊 Status: <span style="color:${d.summary?'var(--accent)':'var(--accent3)'}">${d.summary?'completed':'recording'}</span>${speakerMeta}`;
-
-      document.getElementById('modalSummary').textContent = d.summary || '⚠️ Belum dianalisis AI.';
-      document.getElementById('modalTranscript').textContent = d.full_transcript || '⚠️ Belum ada transkrip.';
-
-      // Diarization data
-      if (d.diarized_transcript) {
-        document.getElementById('modalDiarizationBanner').style.display = 'block';
-        document.getElementById('modalTabDiarized').style.display = 'inline-flex';
-        const speakerCount = d.speakers_detected || 0;
-        if (speakerCount > 0) {
-          showDiarizationBanner(speakerCount, document.getElementById('modalSpeakerPills'), {
-            classList: { add: () => {} }  // banner already visible via display
-          });
-          document.getElementById('modalSpeakerPills').innerHTML = Array.from({length: speakerCount}, (_,i) => {
-            const cls = speakerClass('Speaker ' + (i+1));
-            return `<span class="speaker-pill ${cls}">👤 Speaker ${i+1}</span>`;
-          }).join('');
+            })
+            .join("");
+          log("History: " + data.length + " rapat", "success");
+        } catch (e) {
+          list.innerHTML = `<div style="color:var(--red);font-family:var(--mono);padding:1rem">ERROR: ${e.message}</div>`;
+          log("Gagal load history: " + e.message, "error");
         }
-        renderDiarizedTranscript(d.diarized_transcript, document.getElementById('modalDiarizedTranscript'));
-        // Auto-switch to diarized tab
-        switchModalTab('diarized');
       }
 
-      const icon  = {high:'🔴',medium:'🟡',low:'🟢'};
-      const items = d.action_items || [];
-      document.getElementById('modalActionItems').innerHTML = items.length
-        ? items.map(i => `<div class="action-item"><div class="task">☑ ${i.task}</div><div class="meta">${i.assignee?`<span class="tag tag-person">👤 ${i.assignee}</span>`:''} ${i.deadline?`<span class="tag tag-deadline">📅 ${i.deadline}</span>`:''}</div></div>`).join('')
-        : '<div style="color:var(--muted);font-family:var(--mono);font-size:0.82rem">Tidak ada action items.</div>';
-      const recs = d.recommendations || [];
-      document.getElementById('modalRecommendations').innerHTML = recs.length
-        ? recs.map(r => `<div class="rec-card priority-${r.priority||'medium'}"><div class="rec-title">${icon[r.priority]||'🟡'} ${r.title} <span class="priority-tag ${r.priority||'medium'}">${(r.priority||'medium').toUpperCase()}</span></div><div class="rec-detail">${r.detail}</div></div>`).join('')
-        : '<div style="color:var(--muted);font-family:var(--mono);font-size:0.82rem">Tidak ada rekomendasi.</div>';
-    } catch (e) { document.getElementById('modalSummary').textContent = 'ERROR: ' + e.message; }
-  }
-
-  function closeModal()        {
-    document.getElementById('modalOverlay').style.display = 'none';
-    currentDetailId = null;
-    // Reset edit form
-    document.getElementById('editForm').classList.remove('open');
-    document.getElementById('editTitle').value = '';
-    document.getElementById('editTranscript').value = '';
-    document.getElementById('editReanalyze').checked = false;
-    document.getElementById('editResultBox').style.display = 'none';
-    document.getElementById('editResultBox').textContent = '';
-    document.getElementById('editToggleBtn').textContent = '\u270f\ufe0f Edit Judul / Transkrip';
-  }
-  function onOverlayClick(e)   { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
-  function showDeleteConfirm() { document.getElementById('deleteConfirmBox').style.display = 'block'; }
-  function hideDeleteConfirm() { document.getElementById('deleteConfirmBox').style.display = 'none'; }
-
-  // ── Edit (───────────────────────────────────────
-  function toggleEditForm() {
-    const form = document.getElementById('editForm');
-    const btn  = document.getElementById('editToggleBtn');
-    const isOpen = form.classList.toggle('open');
-    btn.textContent = isOpen ? '\u2715 Tutup Form Edit' : '\u270f\ufe0f Edit Judul / Transkrip';
-    if (isOpen) {
-      // Pre-fill title dari modal
-      const currentTitle = document.getElementById('modalTitle').textContent;
-      if (currentTitle && currentTitle !== 'Loading...') {
-        document.getElementById('editTitle').value = currentTitle;
-      }
-      // Pre-fill transcript dari tab plain
-      const currentTranscript = document.getElementById('modalTranscript').textContent;
-      if (currentTranscript && currentTranscript !== '\u23f3...' && currentTranscript !== '\u26a0\ufe0f Belum ada transkrip.') {
-        document.getElementById('editTranscript').value = currentTranscript;
-      }
-    }
-    document.getElementById('editResultBox').style.display = 'none';
-  }
-
-  async function doEdit() {
-    if (!currentDetailId) return;
-
-    const title      = document.getElementById('editTitle').value.trim();
-    const transcript = document.getElementById('editTranscript').value.trim();
-    const reAnalyze  = document.getElementById('editReanalyze').checked;
-
-    // Minimal satu field harus diisi
-    if (!title && !transcript) {
-      alert('Isi minimal satu field (judul atau transkrip) untuk disimpan.');
-      return;
-    }
-
-    const btn = document.getElementById('editSaveBtn');
-    btn.disabled = true;
-    btn.textContent = '\u23f3 Menyimpan...';
-
-    const body = { re_analyze: reAnalyze };
-    if (title)      body.title           = title;
-    if (transcript) body.full_transcript = transcript;
-
-    try {
-      const res  = await fetch(getUrl() + '/api/v1/meetings/' + currentDetailId, {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(JSON.stringify(data));
-
-      // Update modal title secara langsung
-      if (data.title) document.getElementById('modalTitle').textContent = data.title;
-
-      // Update transcript di modal
-      if (data.full_transcript) {
-        document.getElementById('modalTranscript').textContent = data.full_transcript;
+      async function quickDelete(id, btn) {
+        if (!ensureAuthenticated("Hapus meeting")) return;
+        if (!confirm("Hapus rapat ini?")) return;
+        btn.disabled = true;
+        btn.textContent = "⏳";
+        try {
+          const res = await fetch(
+            getUrl() + "/api/v1/meetings/" + id + "?user_id=" + getUserId(),
+            {
+              method: "DELETE",
+              headers: authHeaders(),
+            },
+          );
+          if (!res.ok) throw new Error("Gagal");
+          btn.closest(".history-card").remove();
+          document.getElementById("historyCount").textContent =
+            document.querySelectorAll(".history-card").length + " rapat";
+          log("Dihapus: " + id, "success");
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = "🗑 Hapus";
+          alert("Gagal hapus: " + e.message);
+        }
       }
 
-      // Jika re-analyzed, update summary + action items + rekomendasi
-      if (data.re_analyzed) {
-        document.getElementById('modalSummary').textContent = data.summary || '—';
-        const icon  = {high:'\ud83d\udd34',medium:'\ud83d\udfe1',low:'\ud83d\udfe2'};
-        const items = data.action_items || [];
-        document.getElementById('modalActionItems').innerHTML = items.length
-          ? items.map(i => `<div class="action-item"><div class="task">\u2611 ${i.task}</div><div class="meta">${i.assignee?`<span class="tag tag-person">\ud83d\udc64 ${i.assignee}</span>`:''} ${i.deadline?`<span class="tag tag-deadline">\ud83d\udcc5 ${i.deadline}</span>`:''}</div></div>`).join('')
-          : '<div style="color:var(--muted);font-family:var(--mono);font-size:0.82rem">Tidak ada action items.</div>';
-        const recs = data.recommendations || [];
-        document.getElementById('modalRecommendations').innerHTML = recs.length
-          ? recs.map(r => `<div class="rec-card priority-${r.priority||'medium'}"><div class="rec-title">${icon[r.priority]||'\ud83d\udfe1'} ${r.title} <span class="priority-tag ${r.priority||'medium'}">${(r.priority||'medium').toUpperCase()}</span></div><div class="rec-detail">${r.detail}</div></div>`).join('')
-          : '<div style="color:var(--muted);font-family:var(--mono);font-size:0.82rem">Tidak ada rekomendasi.</div>';
+      // ── Modal ─────────────────────────────────────────────────
+      async function openDetail(id) {
+        if (!ensureAuthenticated("Buka detail meeting")) return;
+        currentDetailId = id;
+        document.getElementById("modalOverlay").style.display = "flex";
+        [
+          "modalTitle",
+          "modalSummary",
+          "modalTranscript",
+          "modalActionItems",
+          "modalRecommendations",
+        ].forEach((x) => (document.getElementById(x).textContent = "⏳..."));
+        document.getElementById("modalDiarizedTranscript").innerHTML = "";
+        document.getElementById("modalMeta").textContent = "";
+        document.getElementById("modalDiarizationBanner").style.display =
+          "none";
+        document.getElementById("modalTabDiarized").style.display = "none";
+        // reset modal tabs
+        document.getElementById("modalTabPlain").classList.add("active");
+        document.getElementById("modalTabDiarized").classList.remove("active");
+        document.getElementById("modalContentPlain").classList.add("active");
+        document
+          .getElementById("modalContentDiarized")
+          .classList.remove("active");
+        hideDeleteConfirm();
+        try {
+          const res = await fetch(getUrl() + "/api/v1/meetings/" + id, {
+            headers: authHeaders(),
+          });
+          const d = await res.json();
+          if (!res.ok) throw new Error(JSON.stringify(d));
+
+          document.getElementById("modalTitle").textContent = d.title;
+
+          const speakerMeta = d.speakers_detected
+            ? ` | 👥 ${d.speakers_detected} speaker`
+            : "";
+          document.getElementById("modalMeta").innerHTML =
+            `🕐 ${new Date(d.created_at).toLocaleString("id-ID")}<br>🆔 ${d.meeting_id}<br>📊 Status: <span style="color:${d.summary ? "var(--accent)" : "var(--accent3)"}">${d.summary ? "completed" : "recording"}</span>${speakerMeta}`;
+
+          document.getElementById("modalSummary").textContent =
+            d.summary || "⚠️ Belum dianalisis AI.";
+          document.getElementById("modalTranscript").textContent =
+            d.full_transcript || "⚠️ Belum ada transkrip.";
+
+          // Diarization data
+          if (d.diarized_transcript) {
+            document.getElementById("modalDiarizationBanner").style.display =
+              "block";
+            document.getElementById("modalTabDiarized").style.display =
+              "inline-flex";
+            const speakerCount = d.speakers_detected || 0;
+            if (speakerCount > 0) {
+              showDiarizationBanner(
+                speakerCount,
+                document.getElementById("modalSpeakerPills"),
+                {
+                  classList: { add: () => {} }, // banner already visible via display
+                },
+              );
+              document.getElementById("modalSpeakerPills").innerHTML =
+                Array.from({ length: speakerCount }, (_, i) => {
+                  const cls = speakerClass("Speaker " + (i + 1));
+                  return `<span class="speaker-pill ${cls}">👤 Speaker ${i + 1}</span>`;
+                }).join("");
+            }
+            renderDiarizedTranscript(
+              d.diarized_transcript,
+              document.getElementById("modalDiarizedTranscript"),
+            );
+            // Auto-switch to diarized tab
+            switchModalTab("diarized");
+          }
+
+          const icon = { high: "🔴", medium: "🟡", low: "🟢" };
+          const items = d.action_items || [];
+          document.getElementById("modalActionItems").innerHTML = items.length
+            ? items
+                .map(
+                  (i) =>
+                    `<div class="action-item"><div class="task">☑ ${i.task}</div><div class="meta">${i.assignee ? `<span class="tag tag-person">👤 ${i.assignee}</span>` : ""} ${i.deadline ? `<span class="tag tag-deadline">📅 ${i.deadline}</span>` : ""}</div></div>`,
+                )
+                .join("")
+            : '<div style="color:var(--muted);font-family:var(--mono);font-size:0.82rem">Tidak ada action items.</div>';
+          const recs = d.recommendations || [];
+          document.getElementById("modalRecommendations").innerHTML =
+            recs.length
+              ? recs
+                  .map(
+                    (r) =>
+                      `<div class="rec-card priority-${r.priority || "medium"}"><div class="rec-title">${icon[r.priority] || "🟡"} ${r.title} <span class="priority-tag ${r.priority || "medium"}">${(r.priority || "medium").toUpperCase()}</span></div><div class="rec-detail">${r.detail}</div></div>`,
+                  )
+                  .join("")
+              : '<div style="color:var(--muted);font-family:var(--mono);font-size:0.82rem">Tidak ada rekomendasi.</div>';
+        } catch (e) {
+          document.getElementById("modalSummary").textContent =
+            "ERROR: " + e.message;
+        }
       }
 
-      // Tampilkan pesan sukses
-      const resultBox = document.getElementById('editResultBox');
-      resultBox.style.display = 'block';
-      resultBox.textContent   = '\u2713 ' + data.message + (data.re_analyzed ? ' \ud83e\udde0 AI re-analyzed!' : '');
+      function closeModal() {
+        document.getElementById("modalOverlay").style.display = "none";
+        currentDetailId = null;
+        // Reset edit form
+        document.getElementById("editForm").classList.remove("open");
+        document.getElementById("editTitle").value = "";
+        document.getElementById("editTranscript").value = "";
+        document.getElementById("editReanalyze").checked = false;
+        document.getElementById("editResultBox").style.display = "none";
+        document.getElementById("editResultBox").textContent = "";
+        document.getElementById("editToggleBtn").textContent =
+          "\u270f\ufe0f Edit Judul / Transkrip";
+      }
+      function onOverlayClick(e) {
+        if (e.target === document.getElementById("modalOverlay")) closeModal();
+      }
+      function showDeleteConfirm() {
+        document.getElementById("deleteConfirmBox").style.display = "block";
+      }
+      function hideDeleteConfirm() {
+        document.getElementById("deleteConfirmBox").style.display = "none";
+      }
 
-      const fieldsChanged = [title && 'judul', transcript && 'transkrip', reAnalyze && 'AI re-analyzed']
-        .filter(Boolean).join(', ');
-      log(`Edit berhasil: ${fieldsChanged} \u2713`, 'success');
+      // ── Edit (───────────────────────────────────────
+      function toggleEditForm() {
+        const form = document.getElementById("editForm");
+        const btn = document.getElementById("editToggleBtn");
+        const isOpen = form.classList.toggle("open");
+        btn.textContent = isOpen
+          ? "\u2715 Tutup Form Edit"
+          : "\u270f\ufe0f Edit Judul / Transkrip";
+        if (isOpen) {
+          // Pre-fill title dari modal
+          const currentTitle =
+            document.getElementById("modalTitle").textContent;
+          if (currentTitle && currentTitle !== "Loading...") {
+            document.getElementById("editTitle").value = currentTitle;
+          }
+          // Pre-fill transcript dari tab plain
+          const currentTranscript =
+            document.getElementById("modalTranscript").textContent;
+          if (
+            currentTranscript &&
+            currentTranscript !== "\u23f3..." &&
+            currentTranscript !== "\u26a0\ufe0f Belum ada transkrip."
+          ) {
+            document.getElementById("editTranscript").value = currentTranscript;
+          }
+        }
+        document.getElementById("editResultBox").style.display = "none";
+      }
 
-    } catch (e) {
-      const resultBox = document.getElementById('editResultBox');
-      resultBox.style.display = 'block';
-      resultBox.style.background = 'rgba(255,68,68,0.06)';
-      resultBox.style.borderColor = 'rgba(255,68,68,0.3)';
-      resultBox.style.color = 'var(--red)';
-      resultBox.textContent = '\u2717 Gagal: ' + e.message;
-      log('Edit gagal: ' + e.message, 'error');
-    }
+      async function doEdit() {
+        if (!ensureAuthenticated("Edit meeting")) return;
+        if (!currentDetailId) return;
 
-    btn.disabled = false;
-    btn.textContent = '\ud83d\udcbe Simpan Perubahan';
-  }
+        const title = document.getElementById("editTitle").value.trim();
+        const transcript = document
+          .getElementById("editTranscript")
+          .value.trim();
+        const reAnalyze = document.getElementById("editReanalyze").checked;
 
-  async function doDelete() {
-    if (!currentDetailId) return;
-    try {
-      const res = await fetch(getUrl() + '/api/v1/meetings/' + currentDetailId + '?user_id=' + getUserId(), {
-        method: 'DELETE', headers: { 'X-API-Key': getApiKey() }
-      });
-      if (!res.ok) throw new Error('Gagal hapus');
-      log('Dihapus: ' + currentDetailId, 'success');
-      closeModal(); loadHistory();
-    } catch (e) { alert('Gagal hapus: ' + e.message); }
-  }
+        // Minimal satu field harus diisi
+        if (!title && !transcript) {
+          alert(
+            "Isi minimal satu field (judul atau transkrip) untuk disimpan.",
+          );
+          return;
+        }
 
-  checkHealth();
-</script>
-</body>
+        const btn = document.getElementById("editSaveBtn");
+        btn.disabled = true;
+        btn.textContent = "\u23f3 Menyimpan...";
+
+        const body = { re_analyze: reAnalyze };
+        if (title) body.title = title;
+        if (transcript) body.full_transcript = transcript;
+
+        try {
+          const res = await fetch(
+            getUrl() + "/api/v1/meetings/" + currentDetailId,
+            {
+              method: "PATCH",
+              headers: authHeaders(),
+              body: JSON.stringify(body),
+            },
+          );
+          const data = await res.json();
+          if (!res.ok) throw new Error(JSON.stringify(data));
+
+          // Update modal title secara langsung
+          if (data.title)
+            document.getElementById("modalTitle").textContent = data.title;
+
+          // Update transcript di modal
+          if (data.full_transcript) {
+            document.getElementById("modalTranscript").textContent =
+              data.full_transcript;
+          }
+
+          // Jika re-analyzed, update summary + action items + rekomendasi
+          if (data.re_analyzed) {
+            document.getElementById("modalSummary").textContent =
+              data.summary || "—";
+            const icon = {
+              high: "\ud83d\udd34",
+              medium: "\ud83d\udfe1",
+              low: "\ud83d\udfe2",
+            };
+            const items = data.action_items || [];
+            document.getElementById("modalActionItems").innerHTML = items.length
+              ? items
+                  .map(
+                    (i) =>
+                      `<div class="action-item"><div class="task">\u2611 ${i.task}</div><div class="meta">${i.assignee ? `<span class="tag tag-person">\ud83d\udc64 ${i.assignee}</span>` : ""} ${i.deadline ? `<span class="tag tag-deadline">\ud83d\udcc5 ${i.deadline}</span>` : ""}</div></div>`,
+                  )
+                  .join("")
+              : '<div style="color:var(--muted);font-family:var(--mono);font-size:0.82rem">Tidak ada action items.</div>';
+            const recs = data.recommendations || [];
+            document.getElementById("modalRecommendations").innerHTML =
+              recs.length
+                ? recs
+                    .map(
+                      (r) =>
+                        `<div class="rec-card priority-${r.priority || "medium"}"><div class="rec-title">${icon[r.priority] || "\ud83d\udfe1"} ${r.title} <span class="priority-tag ${r.priority || "medium"}">${(r.priority || "medium").toUpperCase()}</span></div><div class="rec-detail">${r.detail}</div></div>`,
+                    )
+                    .join("")
+                : '<div style="color:var(--muted);font-family:var(--mono);font-size:0.82rem">Tidak ada rekomendasi.</div>';
+          }
+
+          // Tampilkan pesan sukses
+          const resultBox = document.getElementById("editResultBox");
+          resultBox.style.display = "block";
+          resultBox.textContent =
+            "\u2713 " +
+            data.message +
+            (data.re_analyzed ? " \ud83e\udde0 AI re-analyzed!" : "");
+
+          const fieldsChanged = [
+            title && "judul",
+            transcript && "transkrip",
+            reAnalyze && "AI re-analyzed",
+          ]
+            .filter(Boolean)
+            .join(", ");
+          log(`Edit berhasil: ${fieldsChanged} \u2713`, "success");
+        } catch (e) {
+          const resultBox = document.getElementById("editResultBox");
+          resultBox.style.display = "block";
+          resultBox.style.background = "rgba(255,68,68,0.06)";
+          resultBox.style.borderColor = "rgba(255,68,68,0.3)";
+          resultBox.style.color = "var(--red)";
+          resultBox.textContent = "\u2717 Gagal: " + e.message;
+          log("Edit gagal: " + e.message, "error");
+        }
+
+        btn.disabled = false;
+        btn.textContent = "\ud83d\udcbe Simpan Perubahan";
+      }
+
+      async function doDelete() {
+        if (!ensureAuthenticated("Delete meeting")) return;
+        if (!currentDetailId) return;
+        try {
+          const res = await fetch(
+            getUrl() +
+              "/api/v1/meetings/" +
+              currentDetailId +
+              "?user_id=" +
+              getUserId(),
+            {
+              method: "DELETE",
+              headers: authHeaders(),
+            },
+          );
+          if (!res.ok) throw new Error("Gagal hapus");
+          log("Dihapus: " + currentDetailId, "success");
+          closeModal();
+          loadHistory();
+        } catch (e) {
+          alert("Gagal hapus: " + e.message);
+        }
+      }
+
+      setAuthState(false, "// Silakan register/login terlebih dahulu.");
+      checkHealth();
+    </script>
+  </body>
 </html>
