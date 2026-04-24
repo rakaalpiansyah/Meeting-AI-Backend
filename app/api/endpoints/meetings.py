@@ -71,18 +71,36 @@ async def finish_meeting(
     4. Simpan hasil ke Supabase
     5. Return hasil ke FE
     """
-    if not payload.full_transcript.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Transkrip tidak boleh kosong.",
-        )
-
     supabase = SupabaseService(access_token=token.credentials)
     meeting = await supabase.get_meeting_by_id(meeting_id)
     if not meeting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Meeting {meeting_id} tidak ditemukan.",
+        )
+
+    empty_msg = "Tidak ada suara yang terdeteksi selama rekaman."
+    if not payload.full_transcript.strip() or payload.full_transcript.strip() == empty_msg:
+        logger.info(f"Meeting {meeting_id} has empty transcript. Skipping AI analysis.")
+        empty_summary = "Tidak ada suara atau percakapan yang terdeteksi selama rekaman berlangsung."
+        
+        saved = await supabase.save_meeting_result(
+            meeting_id=meeting_id,
+            full_transcript="",
+            summary=empty_summary,
+            action_items=[],
+            recommendations=[],
+            diarized_transcript="",
+        )
+        return MeetingResultResponse(
+            meeting_id=meeting_id,
+            title=meeting["title"],
+            summary=empty_summary,
+            action_items=[],
+            recommendations=[],
+            full_transcript="",
+            diarized_transcript="",
+            created_at=datetime.fromisoformat(saved["created_at"]),
         )
 
     # ── Tentukan transkrip untuk AI ───────────────────────────

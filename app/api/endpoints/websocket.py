@@ -37,7 +37,7 @@ async def websocket_transcribe(
     await websocket.accept()
     logger.info(f"WebSocket connected: meeting_id={meeting_id}")
 
-    supabase = SupabaseService()
+    supabase = SupabaseService(use_service_role=True)
     audio_buffer = bytearray()  # Kumpulkan SEMUA audio — jangan pernah di-clear sampai stop
 
     try:
@@ -103,11 +103,14 @@ async def websocket_transcribe(
                                     )
 
                                     # ── Step 3: Simpan transkrip ke DB ────────────
-                                    await supabase.save_transcript_chunk(
-                                        meeting_id=meeting_id,
-                                        chunk_index=0,
-                                        text=transcript_text,
-                                    )
+                                    try:
+                                        await supabase.save_transcript_chunk(
+                                            meeting_id=meeting_id,
+                                            chunk_index=0,
+                                            text=transcript_text,
+                                        )
+                                    except Exception as db_err:
+                                        logger.warning(f"Gagal menyimpan chunk ke DB (mungkin meeting sudah dihapus): {db_err}")
 
                                     # ── Step 4: Kirim hasil ke FE ─────────────────
                                     await websocket.send_json({
@@ -125,10 +128,11 @@ async def websocket_transcribe(
                                         "total_chunks": 1,
                                     })
                                 else:
+                                    empty_msg = "Tidak ada suara yang terdeteksi selama rekaman."
                                     await websocket.send_json({
                                         "type": "session_ended",
-                                        "full_transcript": "",
-                                        "diarized_transcript": "",
+                                        "full_transcript": empty_msg,
+                                        "diarized_transcript": f"[Sistem]: {empty_msg}",
                                         "speakers_detected": 0,
                                         "total_chunks": 0,
                                     })
@@ -141,16 +145,17 @@ async def websocket_transcribe(
                                 })
                                 await websocket.send_json({
                                     "type": "session_ended",
-                                    "full_transcript": "",
-                                    "diarized_transcript": "",
+                                    "full_transcript": "Gagal memproses audio, tidak ada teks yang dihasilkan.",
+                                    "diarized_transcript": "[Sistem]: Gagal memproses audio.",
                                     "speakers_detected": 0,
                                     "total_chunks": 0,
                                 })
                         else:
+                            empty_msg = "Tidak ada suara yang terdeteksi selama rekaman."
                             await websocket.send_json({
                                 "type": "session_ended",
-                                "full_transcript": "",
-                                "diarized_transcript": "",
+                                "full_transcript": empty_msg,
+                                "diarized_transcript": f"[Sistem]: {empty_msg}",
                                 "speakers_detected": 0,
                                 "total_chunks": 0,
                             })

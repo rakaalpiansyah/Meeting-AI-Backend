@@ -2145,6 +2145,19 @@
           document.getElementById("step3Card").style.cssText =
             "opacity:1;pointer-events:auto";
           document.getElementById("stopBtn").disabled = false;
+          
+          // Reset stop button
+          const stopBtn = document.getElementById("stopBtn");
+          if (stopBtn) {
+            stopBtn.disabled = false;
+            stopBtn.textContent = "⏹ Stop Recording";
+          }
+          
+          // Reset record button
+          const recBtn = document.getElementById("recordBtn");
+          recBtn.disabled = false;
+          recBtn.textContent = { mic: "🎤", screen: "🖥️", both: "🎙️+🖥️" }[audioMode] || "🎙";
+
           fullTranscript = "";
           diarizedTranscript = "";
           speakersDetected = 0;
@@ -2304,8 +2317,14 @@
         clearInterval(timerInterval);
         isRecording = false;
         document.getElementById("recordBtn").classList.remove("recording");
-        document.getElementById("recordBtn").textContent =
-          { mic: "🎤", screen: "🖥️", both: "🎙️+🖥️" }[audioMode] || "🎙";
+        document.getElementById("recordBtn").disabled = true;
+        document.getElementById("recordBtn").textContent = "⏳";
+        
+        const stopBtn = document.getElementById("stopBtn");
+        if (stopBtn) {
+          stopBtn.disabled = true;
+          stopBtn.textContent = "⏳ Memproses...";
+        }
         document.getElementById("recordStatus").textContent =
           "Rekaman selesai — menunggu transkripsi & diarization...";
         document.getElementById("recordStatus").className = "record-status";

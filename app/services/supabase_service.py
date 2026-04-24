@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class SupabaseService:
 
-    def __init__(self, access_token: str | None = None):
+    def __init__(self, access_token: str | None = None, use_service_role: bool = False):
         settings = get_settings()
         
         # 1. Siapkan identitas user (token) jika ada
@@ -21,10 +21,12 @@ class SupabaseService:
         if access_token:
             options.headers.update({"Authorization": f"Bearer {access_token}"})
 
-        # 2. Gunakan ANON_KEY (bukan service_role_key) agar RLS aktif!
+        # 2. Gunakan ANON_KEY untuk user biasa agar RLS aktif, atau SERVICE_ROLE_KEY untuk bypass RLS (backend task)
+        api_key = settings.supabase_service_role_key if use_service_role else settings.supabase_anon_key
+
         self.client: Client = create_client(
             settings.supabase_url,
-            settings.supabase_anon_key, 
+            api_key, 
             options=options
         )
 

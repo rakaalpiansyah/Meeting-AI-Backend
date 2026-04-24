@@ -21,6 +21,7 @@
 | 💾 **Persistent Storage**      | Semua hasil rapat disimpan di Supabase (PostgreSQL)         |
 | 🔐 **Dual Auth Layer**         | API Key (sistem) + Supabase Auth (pengguna)                 |
 | ⚡ **Async & Fast**            | Dibangun di atas FastAPI + `async/await` — siap skala besar |
+| 🛡️ **Graceful Handling**      | Anti-crash & auto-skip AI jika rapat hening (hemat token)   |
 
 ---
 
@@ -496,6 +497,7 @@ curl -X POST http://localhost:8000/api/v1/meetings/{id}/finish \
 | WebSocket error `4003`                    | API Key salah atau tidak dikirim sebagai query param                             |
 | Groq API `401`                            | Cek `GROQ_API_KEY` di `.env`                                                     |
 | Transkrip tidak ada speaker label         | Audio terlalu pendek (<5 detik) atau tidak ada jeda antar pembicara              |
+| Rekaman tanpa suara / hening              | Otomatis ditangani sistem: AI di-skip untuk hemat token (Summary otomatis)       |
 | `Column not found` error di Supabase      | Jalankan migration SQL untuk kolom `diarized_transcript` dan `speakers_detected` |
 | CORS error dari frontend                  | Tambahkan URL frontend ke `ALLOWED_ORIGINS` di `.env`                            |
 
